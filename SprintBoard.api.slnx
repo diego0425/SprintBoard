@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SprintBoard.api/SprintBoard.api.csproj" />
+  <Project Path="SprintBoard.Application/SprintBoard.Application.csproj" />
+  <Project Path="SprintBoard.Domain/SprintBoard.Domain.csproj" />
+  <Project Path="SprintBoard.Infrastructure/SprintBoard.Infrastructure.csproj" />
+  <Project Path="SprintBoard.Test/SprintBoard.Test.csproj" />
+</Solution>

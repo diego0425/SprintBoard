@@ -1,0 +1,120 @@
+.invitations-page,
+.profile-page {
+  min-height: calc(100vh - 128px);
+  padding: 1rem 2rem 2rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.invitations-card,
+.profile-card {
+  width: 100%;
+  max-width: 620px;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+}
+
+.invitations-card h1,
+.profile-card h1 {
+  margin: 0 0 0.5rem;
+}
+
+.invitations-card > p {
+  margin: 0 0 1.25rem;
+  color: var(--color-text-muted);
+}
+
+.invitations-form,
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.invitations-form input,
+.profile-form input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.invitations-actions,
+.profile-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.invitations-actions button,
+.profile-actions button {
+  border: none;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 600;
+}
+
+.accept-button {
+  background: var(--color-success);
+}
+
+.decline-button {
+  background: var(--color-danger);
+}
+
+.invitation-success {
+  margin-top: 1rem;
+  color: var(--color-success);
+}
+
+.invitation-error {
+  margin-top: 1rem;
+  color: var(--color-danger);
+}
+
+.profile-image-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-image-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-page-avatar-image,
+.profile-page-avatar-fallback {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-page-avatar-image {
+  object-fit: cover;
+  border: 2px solid var(--color-border-dark);
+}
+
+.profile-page-avatar-fallback {
+  background: var(--color-primary);
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.profile-image-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
