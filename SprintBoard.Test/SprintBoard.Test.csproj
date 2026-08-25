@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SprintBoard.Application\SprintBoard.Application.csproj" />
+    <ProjectReference Include="..\SprintBoard.api\SprintBoard.api.csproj" />
   </ItemGroup>
 
 </Project>
