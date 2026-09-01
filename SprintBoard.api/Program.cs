@@ -126,3 +126,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.Run();
+
+/// <summary>
+/// Exposes the application entry point for integration testing
+/// through WebApplicationFactory.
+/// </summary>
+public partial class Program
+{
+}
