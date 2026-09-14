@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using SprintBoard.Application.Interfaces;
 using SprintBoard.Infrastructure.Persistence;
 
 namespace SprintBoard.Test.Integration
@@ -33,25 +34,9 @@ namespace SprintBoard.Test.Integration
         /// Supplies configuration values before the SprintBoard
         /// application entry point is executed.
         /// </summary>
-        /// <param name="builder">
-        /// Host builder used to initialize the test application.
-        /// </param>
-        /// <returns>
-        /// The initialized SprintBoard test host.
-        /// </returns>
         protected override IHost CreateHost(
             IHostBuilder builder)
         {
-            /*
-             * This configuration is added BEFORE Program.cs executes.
-             *
-             * Therefore:
-             *
-             * builder.Configuration.GetSection("Jwt")
-             *
-             * already contains these values when SprintBoard
-             * registers JwtOptions and JwtBearer.
-             */
             builder.ConfigureHostConfiguration(
                 configuration =>
                 {
@@ -75,18 +60,9 @@ namespace SprintBoard.Test.Integration
                         settings);
                 });
 
-            /*
-             * Allow WebApplicationFactory to execute the real
-             * SprintBoard Program.cs and build the application.
-             */
             var host =
                 base.CreateHost(builder);
 
-            /*
-             * At this point the custom SQLite DbContext has already
-             * replaced SQL Server. Build the schema using the real
-             * SprintBoard EF Core model.
-             */
             using var scope =
                 host.Services.CreateScope();
 
@@ -101,12 +77,9 @@ namespace SprintBoard.Test.Integration
         }
 
         /// <summary>
-        /// Replaces production infrastructure after Program.cs
-        /// registrations have been executed.
+        /// Replaces production infrastructure after the normal
+        /// application registrations have been executed.
         /// </summary>
-        /// <param name="builder">
-        /// Web host builder used by the integration-test application.
-        /// </param>
         protected override void ConfigureWebHost(
             IWebHostBuilder builder)
         {
@@ -115,8 +88,8 @@ namespace SprintBoard.Test.Integration
             builder.ConfigureServices(
                 services =>
                 {
-                    ConfigureDatabase(
-                        services);
+                    ConfigureDatabase(services);
+                    ConfigureExternalServices(services);
                 });
         }
 
@@ -128,16 +101,9 @@ namespace SprintBoard.Test.Integration
         /// Replaces SQL Server with an isolated SQLite
         /// in-memory relational database.
         /// </summary>
-        /// <param name="services">
-        /// Application service collection.
-        /// </param>
         private void ConfigureDatabase(
             IServiceCollection services)
         {
-            /*
-             * Remove the SprintBoardDbContext registration
-             * created by the production application.
-             */
             services.RemoveAll<
                 SprintBoardDbContext>();
 
@@ -145,35 +111,44 @@ namespace SprintBoard.Test.Integration
                 DbContextOptions<
                     SprintBoardDbContext>>();
 
-            /*
-             * Remove EF Core's SQL Server options configuration.
-             *
-             * Without this, EF Core may detect both SQL Server
-             * and SQLite providers for the same DbContext.
-             */
             services.RemoveAll<
                 IDbContextOptionsConfiguration<
                     SprintBoardDbContext>>();
 
-            /*
-             * SQLite in-memory databases live only while
-             * their connection remains open.
-             */
             _connection =
                 new SqliteConnection(
                     "Data Source=:memory:");
 
             _connection.Open();
 
-            /*
-             * Register SQLite as the relational database provider
-             * used by integration tests.
-             */
             services.AddDbContext<
                 SprintBoardDbContext>(
                 options =>
                     options.UseSqlite(
                         _connection));
+        }
+
+        // ============================================================
+        // EXTERNAL SERVICES
+        // ============================================================
+
+        /// <summary>
+        /// Replaces external integrations that must not perform real
+        /// network operations during automated integration tests.
+        /// </summary>
+        private static void ConfigureExternalServices(
+            IServiceCollection services)
+        {
+            /*
+             * Invitations should execute their real application and
+             * persistence flow, but automated tests must never send
+             * real external emails.
+             */
+            services.RemoveAll<IEmailService>();
+
+            services.AddSingleton<
+                IEmailService,
+                NoOpEmailService>();
         }
 
         // ============================================================
@@ -184,9 +159,6 @@ namespace SprintBoard.Test.Integration
         /// Releases the SQLite connection when the integration
         /// test application is disposed.
         /// </summary>
-        /// <param name="disposing">
-        /// Indicates whether managed resources should be disposed.
-        /// </param>
         protected override void Dispose(
             bool disposing)
         {
@@ -196,6 +168,30 @@ namespace SprintBoard.Test.Integration
             }
 
             base.Dispose(disposing);
+        }
+
+        // ============================================================
+        // TEST DOUBLES
+        // ============================================================
+
+        /// <summary>
+        /// Prevents integration tests from sending real emails while
+        /// preserving the complete invitation application flow.
+        /// </summary>
+        private sealed class NoOpEmailService
+            : IEmailService
+        {
+            /// <summary>
+            /// Simulates successful invitation email delivery.
+            /// </summary>
+            public Task SendBoardInvitationAsync(
+                string toEmail,
+                string boardName,
+                string acceptInvitationLink,
+                string declineInvitationLink)
+            {
+                return Task.CompletedTask;
+            }
         }
     }
 }
