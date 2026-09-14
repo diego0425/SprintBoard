@@ -111,6 +111,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    using var scope =
+        app.Services.CreateScope();
+
+    var dbContext =
+        scope.ServiceProvider
+            .GetRequiredService<
+                SprintBoardDbContext>();
+
+    dbContext.Database.Migrate();
+}
+
 app.UseStaticFiles();
 app.UseCors("AllowFrontend");
 app.UseMiddleware<GlobalExceptionMiddleware>();
