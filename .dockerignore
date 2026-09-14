@@ -1,0 +1,32 @@
+# Git
+.git
+.github
+
+# Visual Studio
+.vs
+**/.vs
+**/*.user
+**/*.suo
+
+# .NET
+**/bin
+**/obj
+
+# Tests / Coverage
+TestResults
+**/TestResults
+coverage
+.coverage
+**/*.coverage
+**/*.coveragexml
+
+# Frontend
+**/node_modules
+**/dist
+
+# Environment files
+.env
+.env.*
+
+# Misc
+README.md
