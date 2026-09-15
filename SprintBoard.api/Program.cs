@@ -70,6 +70,36 @@ var jwtOptions = builder.Configuration
     .Get<JwtOptions>()
     ?? throw new InvalidOperationException("JWT configuration is missing.");
 
+if (string.IsNullOrWhiteSpace(jwtOptions.Key))
+{
+    throw new InvalidOperationException(
+        "JWT signing key is missing.");
+}
+
+if (Encoding.UTF8.GetByteCount(jwtOptions.Key) < 32)
+{
+    throw new InvalidOperationException(
+        "JWT signing key must contain at least 32 bytes.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
+{
+    throw new InvalidOperationException(
+        "JWT issuer is missing.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
+{
+    throw new InvalidOperationException(
+        "JWT audience is missing.");
+}
+
+if (jwtOptions.ExpiresMinutes <= 0)
+{
+    throw new InvalidOperationException(
+        "JWT expiration must be greater than zero.");
+}
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -96,16 +126,25 @@ builder.Services.AddDbContext<SprintBoardDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("Default")));
 
+var allowedOrigins =
+    builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>()
+    ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         "AllowFrontend",
         policy =>
         {
-            policy
-                .WithOrigins("http://localhost:5173")
-                .AllowAnyHeader()
-                .AllowAnyMethod();
+            if (allowedOrigins.Length > 0)
+            {
+                policy
+                    .WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            }
         });
 });
 

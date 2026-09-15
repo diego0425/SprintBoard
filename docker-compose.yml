@@ -53,6 +53,10 @@ services:
       Jwt__Audience: "SprintBoard.Client"
       Jwt__ExpiresMinutes: "60"
 
+      Email__SmtpUsername: "${SMTP_USERNAME}"
+      Email__SmtpPassword: "${SMTP_PASSWORD}"
+      Email__FrontendBaseUrl: "http://localhost:3000"
+
     ports:
       - "8080:8080"
 
