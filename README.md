@@ -2,7 +2,7 @@
 
 SprintBoard is a full-stack collaborative task management application inspired by Kanban-style workflows.
 
-The project was built to explore modern backend development practices using **C# and .NET**, with a strong focus on **Clean Architecture, maintainability, authentication, authorization, automated testing, integration testing, and collaborative features**.
+The project was built to explore modern backend and full-stack development practices using **C#/.NET and React**, with a strong focus on **Clean Architecture, authentication, authorization, automated testing, integration testing, Docker, and collaborative features**.
 
 ---
 
@@ -24,6 +24,7 @@ The project was built to explore modern backend development practices using **C#
 * TypeScript
 * Vite
 * Axios
+* Nginx
 
 ### Testing
 
@@ -39,8 +40,17 @@ The project was built to explore modern backend development practices using **C#
 * Authorization Testing
 * Integration Testing
 * HTTP Pipeline Testing
-* JWT Token Validation
 * Code Coverage
+
+### DevOps / Infrastructure
+
+* Docker
+* Docker Compose
+* Multi-stage Docker builds
+* SQL Server container
+* Persistent Docker volumes
+* Nginx reverse proxy
+* Environment-based configuration
 
 ---
 
@@ -56,17 +66,20 @@ The project was built to explore modern backend development practices using **C#
 * Board invitations by email
 * Invitation acceptance and rejection
 * Member role management
-* Member removal and voluntary board leave
+* Member removal
+* Voluntary board leave
 * Cards with status management
 * Card checklists
 * Authorization based on board membership and roles
 * Global API exception handling
-* Automated testing for business rules, controllers, middleware and authorization flows
-* End-to-end HTTP integration tests for critical backend workflows
+* Automated tests across multiple application layers
+* Full HTTP integration testing
+* Dockerized backend, frontend and database
+* Persistent SQL Server data through Docker volumes
 
 ---
 
-## 🏗️ Architecture
+# 🏗️ Architecture
 
 The backend follows **Clean Architecture** principles and is divided into:
 
@@ -77,11 +90,33 @@ SprintBoard.Infrastructure
 SprintBoard.api
 ```
 
-### Domain
+The frontend is located in:
 
-Contains the core entities and domain rules.
+```text
+sprintboard-web
+```
 
-### Application
+Automated tests are located in:
+
+```text
+SprintBoard.Test
+```
+
+---
+
+## Domain
+
+Contains:
+
+* Core entities
+* Domain behavior
+* Domain rules
+* Board roles
+* Card and checklist state
+
+---
+
+## Application
 
 Contains:
 
@@ -92,52 +127,355 @@ Contains:
 * Authorization logic
 * Use-case orchestration
 
-### Infrastructure
+---
+
+## Infrastructure
 
 Contains:
 
 * Entity Framework Core
 * SQL Server persistence
 * Repository implementations
-* Email infrastructure
 * Database configuration
+* Email infrastructure
 
-### API
+---
+
+## API
 
 Contains:
 
 * Controllers
 * JWT authentication
 * HTTP services
+* File storage service
 * Global exception middleware
 * Dependency injection configuration
 * Application startup configuration
 
-### Frontend
+---
 
-The React + TypeScript frontend is located in:
+## Frontend
+
+The frontend is built with React, TypeScript and Vite.
+
+It communicates with the backend through Axios.
+
+When running through Docker, Nginx serves the React production build and proxies:
 
 ```text
-sprintboard-web
+/api/*
 ```
 
-### Tests
+to the ASP.NET Core API container.
 
-Automated tests are located in:
+---
+
+# 🐳 Docker
+
+SprintBoard can run as a complete containerized environment using **Docker Compose**.
+
+The Docker environment contains three main services:
 
 ```text
-SprintBoard.Test
+Browser
+   │
+   │ http://localhost:3000
+   ▼
+┌──────────────────────┐
+│ React + Nginx        │
+│ sprintboard-web      │
+│ Port 80              │
+└──────────┬───────────┘
+           │ /api/v1/*
+           ▼
+┌──────────────────────┐
+│ ASP.NET Core .NET 10 │
+│ sprintboard-api      │
+│ Port 8080            │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ SQL Server 2022      │
+│ sqlserver:1433       │
+└──────────┬───────────┘
+           │
+           ▼
+    Persistent Volume
 ```
 
 ---
 
-## 🧪 Automated Tests
+## Docker Services
 
-SprintBoard has an extensive automated test suite built with **xUnit v3**, **Moq**, **Microsoft.Testing.Platform**, and ASP.NET Core integration testing tools.
+### Frontend
 
-The project currently has:
+The frontend uses a multi-stage Docker build.
 
-**✅ 340 automated tests passing**
+The application is first compiled using Node.js:
+
+```text
+Node.js
+   ↓
+npm ci
+   ↓
+npm run build
+   ↓
+dist/
+```
+
+The production files are then served by **Nginx**.
+
+Nginx also acts as a reverse proxy for backend requests.
+
+Example:
+
+```text
+Browser request:
+/api/v1/boards
+
+        ↓
+
+Nginx
+
+        ↓
+
+http://api:8080/api/v1/boards
+```
+
+This allows the browser to communicate with the frontend and backend through the same origin.
+
+---
+
+### Backend
+
+The backend also uses a multi-stage Docker build.
+
+```text
+.NET 10 SDK
+      ↓
+dotnet restore
+      ↓
+dotnet publish
+      ↓
+ASP.NET Core Runtime
+```
+
+The final runtime image contains only the published application and the ASP.NET Core runtime.
+
+---
+
+### Database
+
+SQL Server 2022 runs in its own container.
+
+The API connects to it internally using the Docker service name:
+
+```text
+sqlserver
+```
+
+instead of `localhost`.
+
+Database data is persisted through a named Docker volume:
+
+```text
+sprintboard-sql-data
+```
+
+This means database data survives:
+
+```bash
+docker compose down
+docker compose up
+```
+
+Removing the Docker containers does not automatically remove the stored SprintBoard data.
+
+---
+
+# ▶️ Running SprintBoard with Docker
+
+## Requirements
+
+Install:
+
+* Docker Desktop
+* WSL 2 on Windows
+* Hardware virtualization enabled
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the repository root.
+
+Example:
+
+```env
+SA_PASSWORD=your-local-sql-server-password
+JWT_KEY=your-local-jwt-secret-key
+```
+
+Do not commit this file.
+
+The repository `.gitignore` excludes environment files containing local secrets.
+
+---
+
+## Start the Application
+
+From the repository root:
+
+```bash
+docker compose up -d --build
+```
+
+Docker will:
+
+1. Build the React frontend
+2. Build the ASP.NET Core backend
+3. Start SQL Server
+4. Wait for SQL Server health checks
+5. Start the API
+6. Start Nginx
+7. Connect all services through the Docker network
+
+---
+
+## Application URLs
+
+### SprintBoard
+
+```text
+http://localhost:3000
+```
+
+### Swagger
+
+```text
+http://localhost:8080/swagger
+```
+
+### API
+
+```text
+http://localhost:8080/api/v1
+```
+
+---
+
+## Check Containers
+
+```bash
+docker compose ps
+```
+
+Expected services:
+
+```text
+sprintboard-web
+sprintboard-api
+sprintboard-sqlserver
+```
+
+---
+
+## Stop SprintBoard
+
+```bash
+docker compose down
+```
+
+Database data remains stored in the Docker volume.
+
+To also remove the volume:
+
+```bash
+docker compose down -v
+```
+
+> Warning: removing the volume deletes the containerized SQL Server database data.
+
+---
+
+# 🔐 Authentication
+
+SprintBoard uses JWT Bearer authentication.
+
+The flow is:
+
+```text
+Register / Login
+       ↓
+JWT generated
+       ↓
+Client stores token
+       ↓
+Authorization: Bearer <token>
+       ↓
+Protected API endpoints
+```
+
+JWT configuration is supplied through environment-specific application configuration.
+
+---
+
+# 🛡️ Authorization
+
+SprintBoard implements board membership and role-based authorization.
+
+Available roles:
+
+## Owner
+
+The Owner has full control over the board.
+
+The Owner can:
+
+* Manage the board
+* Manage members
+* Change member roles
+* Remove members
+* Invite users
+* Delete the board
+
+The Owner cannot leave their own board.
+
+---
+
+## Admin
+
+Admins can:
+
+* Invite users
+* Manage permitted board resources
+* Remove regular Members
+
+Admins cannot remove other Admins when the current authorization rules forbid it.
+
+---
+
+## Member
+
+Members can participate in boards and manage resources permitted by their role.
+
+Members cannot perform Owner or Admin-only operations.
+
+Authorization rules are centralized through:
+
+```text
+MembershipAuthorizationService
+```
+
+---
+
+# 🧪 Automated Tests
+
+SprintBoard has an extensive automated test suite.
+
+Current status:
 
 ```text
 Total:   340
@@ -146,15 +484,25 @@ Failed:  0
 Skipped: 0
 ```
 
-The test suite covers multiple testing layers instead of relying only on isolated unit tests.
+## ✅ 340 automated tests passing
+
+The suite contains:
+
+* Unit tests
+* Service tests
+* Authorization tests
+* Controller tests
+* Middleware tests
+* JWT tests
+* HTTP pipeline tests
+* Integration tests
+* Multi-user collaboration tests
 
 ---
 
-## 🔬 Test Strategy
+# 🔬 Test Strategy
 
-### Unit Tests
-
-Unit tests validate individual business components and rules in isolation.
+## Unit Tests
 
 Covered services include:
 
@@ -167,7 +515,7 @@ Covered services include:
 * `MembershipAuthorizationService`
 * `JwtTokenService`
 
-The tests validate both successful and failure scenarios, including:
+The tests validate:
 
 * Input validation
 * Missing resources
@@ -178,13 +526,11 @@ The tests validate both successful and failure scenarios, including:
 * Repository interactions
 * JWT claims
 * JWT expiration
-* JWT signature validation
+* JWT signatures
 
 ---
 
-### Controller Tests
-
-The API controllers are tested independently from the HTTP server.
+## Controller Tests
 
 Covered controllers include:
 
@@ -195,72 +541,64 @@ Covered controllers include:
 * `CardTasksController`
 * `InvitationsController`
 
-Controller tests validate:
-
-* HTTP responses
-* Request handling
-* Service calls
-* Authentication requirements
-* Authorization behavior
-* Invalid requests
-* Resource creation
-* Updates
-* Deletion flows
+Controller tests validate request handling and HTTP responses independently from the full server.
 
 ---
 
-### Middleware Tests
+## Middleware Tests
 
 `GlobalExceptionMiddleware` is covered by automated tests.
 
-The tests validate mappings such as:
+Exception mappings include:
 
 ```text
-ArgumentException          → 400 Bad Request
+ArgumentException           → 400 Bad Request
 UnauthorizedAccessException → 401 Unauthorized
-ForbiddenAccessException   → 403 Forbidden
-KeyNotFoundException       → 404 Not Found
-InvalidOperationException  → 409 Conflict
-Unexpected Exception       → 500 Internal Server Error
+ForbiddenAccessException    → 403 Forbidden
+KeyNotFoundException        → 404 Not Found
+InvalidOperationException   → 409 Conflict
+Unexpected Exception        → 500 Internal Server Error
 ```
 
-They also validate:
+Tests also verify:
 
-* JSON response content type
+* JSON responses
 * Trace IDs
-* Successful pipeline continuation
-* Generic protection against exposing internal server errors
+* Pipeline continuation
+* Protection against internal error exposure
 
 ---
 
-## 🌐 Integration Tests
+# 🌐 Integration Tests
 
-SprintBoard includes HTTP integration tests using:
+SprintBoard integration tests use:
 
 * `WebApplicationFactory`
-* Real ASP.NET Core HTTP pipeline
+* ASP.NET Core real HTTP pipeline
 * Real controllers
 * Real application services
 * Real repositories
-* Real Entity Framework Core
+* Entity Framework Core
 * Real JWT generation and validation
-* SQLite in-memory database
+* SQLite in-memory relational database
 
-External services such as email delivery are replaced during integration tests so automated tests never send real emails.
+External infrastructure such as real email delivery is replaced during automated integration testing.
 
-### API Pipeline Tests
+---
+
+## API Pipeline Tests
 
 The integration suite validates:
 
-* Protected endpoints returning `401 Unauthorized`
-* Invalid request models returning `400 Bad Request`
-* Malformed JSON handling
-* Unknown routes returning `404 Not Found`
-* Global exception middleware behavior through the real HTTP pipeline
+* `401 Unauthorized`
+* `400 Bad Request`
+* Malformed JSON
+* Unknown routes
+* Global exception middleware behavior
 
-### Authentication Flow
+---
 
-Integration tests validate real flows such as:
+## Authentication Flow
 
 ```text
 Register
@@ -271,125 +609,87 @@ Authenticated request
    ↓
 Controller
    ↓
-Application service
+Application Service
    ↓
 Repository
    ↓
-SQLite database
+SQLite Database
 ```
 
-### Board Flow
+---
 
-The authenticated board integration flow validates:
+## Board Flow
 
-* User registration
-* User login
+Integration tests validate:
+
+* Registration
+* Login
 * JWT authentication
 * Board creation
 * Board persistence
 * Retrieving user boards
 * Retrieving boards by ID
 
-### Collaboration Flow
+---
 
-Multi-user integration tests validate real collaboration scenarios.
+## Collaboration Flow
 
-Examples include:
+Multi-user tests validate scenarios such as:
 
 ```text
 Owner registers
       ↓
 Owner creates Board
       ↓
-Second user registers
+User B registers
       ↓
-Second user cannot access Board
+User B cannot access Board
       ↓
-Owner creates invitation
+Owner invites User B
       ↓
-User accepts invitation
+User B accepts invitation
       ↓
 Membership is created
       ↓
-User gains Board access
+User B gains access
 ```
 
-Additional tests validate:
+They also cover:
 
-* Owner invitations
 * Admin invitations
 * Member access
-* Member removal
-* Voluntary board leave
-* Owner restrictions
 * Role promotion
-* Member → Admin promotion
+* Member to Admin promotion
+* Member removal
 * Admin removing Members
-* Admin being prevented from removing another Admin
+* Admin restrictions
+* Member leaving a Board
+* Owner being prevented from leaving their Board
 * Unauthorized users being denied access
 
 ---
 
-## 🔐 Authorization
+# 📊 Code Coverage
 
-SprintBoard implements role and membership-based authorization for collaborative boards.
+Code coverage is collected using:
 
-Available roles:
+* Coverlet.MTP
+* Microsoft.Testing.Platform
+* Cobertura reports
 
-### Owner
+Generated Entity Framework migrations and third-party libraries are excluded from the coverage calculation.
 
-Has full control over the board.
-
-The Owner can:
-
-* Manage the board
-* Manage members
-* Change member roles
-* Remove members
-* Invite users
-* Delete the board
-
-The Owner cannot leave their own board and must delete it instead.
-
-### Admin
-
-Admins can perform administrative operations within the board.
-
-They can:
-
-* Invite users
-* Manage allowed board resources
-* Remove regular Members
-
-Admins cannot remove another Admin when the current authorization rules do not allow it.
-
-### Member
-
-Members can participate in boards and manage resources allowed by their role.
-
-They cannot perform Owner/Admin-only operations.
-
-Authorization rules are centralized through the `MembershipAuthorizationService` and are covered by unit, controller and integration tests.
-
----
-
-## 📊 Code Coverage
-
-Code coverage is collected using **Coverlet.MTP** with **Microsoft.Testing.Platform**.
-
-Generated migrations and third-party libraries are excluded from the coverage calculation so the report reflects the actual SprintBoard source code.
-
-### Current Coverage
+## Current Coverage
 
 ```text
 Line Coverage:   86.46%
 Branch Coverage: 83.53%
 
-Lines Covered:     1463 / 1692
-Branches Covered:   279 / 334
+Lines Covered:      1463 / 1692
+Branches Covered:    279 / 334
 ```
 
-### Coverage by Project
+## Coverage by Project
 
 | Project | Line Coverage | Branch Coverage |
 |---|---:|---:|
@@ -398,15 +698,44 @@ Branches Covered:   279 / 334
 | SprintBoard.Domain | 77.93% | 53.94% |
 | SprintBoard.Infrastructure | 63.17% | 0% |
 
-The application layer, where most business rules are implemented, currently has **100% line and branch coverage**.
+The application layer, where most business rules are implemented, has:
 
-Infrastructure coverage is lower because external integrations such as SMTP email delivery and physical file storage are intentionally isolated from the automated integration-test environment.
+```text
+100% Line Coverage
+100% Branch Coverage
+```
+
+Infrastructure coverage is lower because external infrastructure such as SMTP delivery and physical file storage is intentionally isolated from most automated tests.
 
 ---
 
-## ▶️ Running the Tests
+# 📈 Generating Code Coverage
 
-Run the complete test suite from the repository root:
+The repository uses **Microsoft.Testing.Platform** as the test runner.
+
+Run:
+
+```powershell
+dotnet test `
+  --coverlet `
+  --coverlet-output-format cobertura `
+  --coverlet-include "[SprintBoard.*]*" `
+  --coverlet-exclude-by-file "**/Migrations/**"
+```
+
+Generated reports are stored in:
+
+```text
+TestResults/
+```
+
+Test results and coverage artifacts are ignored by Git.
+
+---
+
+# ▶️ Running Tests
+
+From the repository root:
 
 ```bash
 dotnet test
@@ -423,119 +752,69 @@ Skipped: 0
 
 ---
 
-## 📈 Generating Code Coverage
-
-SprintBoard uses **Microsoft.Testing.Platform** as its test runner.
-
-The runner is configured through:
+# 📁 Project Structure
 
 ```text
-global.json
-```
-
-To generate the coverage report:
-
-```powershell
-dotnet test `
-  --coverlet `
-  --coverlet-output-format cobertura `
-  --coverlet-include "[SprintBoard.*]*" `
-  --coverlet-exclude-by-file "**/Migrations/**"
-```
-
-The generated coverage files are stored under:
-
-```text
-TestResults/
-```
-
-Coverage reports and test-result artifacts are ignored by Git.
-
----
-
-## 🧪 Tested Components
-
-The current automated testing structure covers:
-
-```text
-SprintBoard.Test
-├── Authorization
-├── Auth
-├── Controllers
-├── Integration
-├── Middlewares
-└── Services
-```
-
-Main tested components include:
-
-```text
-AuthService
-UserService
-BoardService
-CardService
-CardTaskService
-InvitationService
-MembershipAuthorizationService
-JwtTokenService
-
-AuthController
-UsersController
-BoardsController
-CardsController
-CardTasksController
-InvitationsController
-
-GlobalExceptionMiddleware
-
-API Pipeline
-Authentication Flow
-Board Flow
-Board Collaboration Flow
+SprintBoard/
+│
+├── SprintBoard.Domain/
+├── SprintBoard.Application/
+├── SprintBoard.Infrastructure/
+├── SprintBoard.api/
+│   └── Dockerfile
+│
+├── SprintBoard.Test/
+│
+├── sprintboard-web/
+│   ├── public/
+│   │   └── favicon.png
+│   ├── src/
+│   ├── Dockerfile
+│   └── nginx.conf
+│
+├── docker-compose.yml
+├── .dockerignore
+├── .gitignore
+├── global.json
+└── README.md
 ```
 
 ---
 
-## 🛡️ Security
+# 🎨 Branding
 
-SprintBoard applies several backend security practices:
+SprintBoard includes its own favicon and browser branding.
 
-* JWT authentication
-* Protected API endpoints
-* Role-based authorization
-* Board membership validation
-* Owner/Admin/Member permission checks
-* Centralized authorization service
-* Global exception handling
-* `401 Unauthorized` and `403 Forbidden` handling
-* Server-side resource ownership validation
+The favicon is served through the React/Vite frontend:
 
-Authorization rules are validated at multiple levels through unit, controller and integration tests.
+```text
+sprintboard-web/public/favicon.png
+```
 
 ---
 
-## 📌 Project Status
+# 📌 Project Status
 
-SprintBoard is currently under active development.
+SprintBoard is under active development.
 
-### ✅ Completed
+## ✅ Completed
 
-* Core backend API
-* Clean Architecture backend structure
+* Clean Architecture backend
+* ASP.NET Core Web API
+* React + TypeScript frontend
 * JWT authentication
 * User management
 * Profile image support
-* Boards
+* Board management
 * Cards
 * Card checklists
-* Board members
+* Board membership
 * Owner / Admin / Member roles
 * Email invitation flow
 * Invitation acceptance and rejection
 * Member role management
-* React + TypeScript frontend integration
 * Global exception handling
-* Service unit tests
+* Automated service tests
 * Authorization tests
 * JWT tests
 * Controller tests
@@ -544,30 +823,45 @@ SprintBoard is currently under active development.
 * Authentication integration tests
 * Board integration tests
 * Multi-user collaboration integration tests
-* SQLite in-memory integration-test infrastructure
-* Code coverage configuration
+* SQLite integration-test environment
 * 340 automated tests
 * 86.46% line coverage
 * 83.53% branch coverage
-* Git/GitHub project organization
-
-### 🚧 Next Improvements
-
-* Docker support
-* Production environment configuration
-* Production email delivery
-* Deployment
-* Expanded API documentation
-* CI/CD pipeline
-* Additional frontend improvements
+* Microsoft.Testing.Platform configuration
+* Coverlet code coverage
+* Dockerized ASP.NET Core API
+* Dockerized React frontend
+* Nginx production frontend
+* Nginx API reverse proxy
+* Dockerized SQL Server 2022
+* Persistent SQL Server volume
+* Docker Compose orchestration
+* Automatic Development database migrations
+* Full-stack Docker environment
+* SprintBoard favicon / browser branding
 
 ---
 
-## 🎯 Current Development Stage
+## 🚧 Next Improvements
 
-The automated testing phase is complete.
+* Production environment configuration
+* Secure production secrets management
+* Production database migration strategy
+* Production email delivery
+* HTTPS configuration
+* Deployment
+* CI/CD pipeline
+* Expanded API documentation
+* Additional frontend improvements
+* Monitoring and observability
 
-Current backend quality metrics:
+---
+
+# 🎯 Current Development Stage
+
+The automated testing and Docker containerization phases are complete.
+
+Current quality metrics:
 
 ```text
 Automated Tests:  340
@@ -577,11 +871,17 @@ Branch Coverage:  83.53%
 Application:      100% line / 100% branch coverage
 ```
 
-The next major development phase is **Docker containerization**, followed by production preparation and deployment.
+The entire application can now be started with:
+
+```bash
+docker compose up -d --build
+```
+
+The next major phase is **production preparation and deployment**.
 
 ---
 
-## 👨‍💻 Author
+# 👨‍💻 Author
 
 **Diego Sousa Mello**
 
