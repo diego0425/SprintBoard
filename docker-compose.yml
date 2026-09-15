@@ -56,5 +56,21 @@ services:
     ports:
       - "8080:8080"
 
+  frontend:
+    build:
+      context: .
+      dockerfile: sprintboard-web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+
+    image: sprintboard-web
+    container_name: sprintboard-web
+
+    depends_on:
+      - api
+
+    ports:
+      - "3000:80"
+
 volumes:
   sprintboard-sql-data:
