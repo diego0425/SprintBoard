@@ -68,6 +68,17 @@ public sealed class LocalFileStorageService
             string fileName,
             string contentType)
     {
+        var publicBaseUrl =
+            _options.PublicBaseUrl
+                .TrimEnd('/');
+
+        if (string.IsNullOrWhiteSpace(
+            publicBaseUrl))
+        {
+            throw new InvalidOperationException(
+                "File storage public base URL is missing.");
+        }
+
         var webRootPath =
             _webHostEnvironment.WebRootPath
             ?? "wwwroot";
@@ -100,17 +111,6 @@ public sealed class LocalFileStorageService
         {
             await fileStream.CopyToAsync(
                 outputStream);
-        }
-
-        var publicBaseUrl =
-            _options.PublicBaseUrl
-                .TrimEnd('/');
-
-        if (string.IsNullOrWhiteSpace(
-            publicBaseUrl))
-        {
-            throw new InvalidOperationException(
-                "File storage public base URL is missing.");
         }
 
         return
