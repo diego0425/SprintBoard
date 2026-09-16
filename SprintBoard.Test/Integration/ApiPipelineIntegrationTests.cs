@@ -11,7 +11,7 @@ namespace SprintBoard.Test.Integration
     /// HTTP pipeline through an in-memory test server.
     /// </summary>
     public class ApiPipelineIntegrationTests
-        : IClassFixture<WebApplicationFactory<Program>>
+        : IClassFixture<CustomWebApplicationFactory>
     {
         private readonly HttpClient _client;
 
@@ -23,7 +23,7 @@ namespace SprintBoard.Test.Integration
         /// Factory responsible for hosting the application in memory.
         /// </param>
         public ApiPipelineIntegrationTests(
-            WebApplicationFactory<Program> factory)
+            CustomWebApplicationFactory factory)
         {
             _client =
                 factory.CreateClient(
@@ -207,6 +207,79 @@ namespace SprintBoard.Test.Integration
             // Assert
             Assert.Equal(
                 HttpStatusCode.BadRequest,
+                response.StatusCode);
+        }
+
+        // ============================================================
+        // HEALTH CHECKS
+        // ============================================================
+
+        /// <summary>
+        /// Verifies that the application liveness health check
+        /// reports HTTP 200 when the API process is running.
+        /// </summary>
+        [Fact]
+        public async Task HealthLive_ShouldReturnOk_WhenApplicationIsRunning()
+        {
+            // Arrange
+            const string endpoint =
+                "/health/live";
+
+            // Act
+            var response =
+                await _client.GetAsync(
+                    endpoint,
+                    TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal(
+                HttpStatusCode.OK,
+                response.StatusCode);
+        }
+
+        /// <summary>
+        /// Verifies that the readiness health check reports HTTP 200
+        /// when the application can access its configured database.
+        /// </summary>
+        [Fact]
+        public async Task HealthReady_ShouldReturnOk_WhenDatabaseIsAvailable()
+        {
+            // Arrange
+            const string endpoint =
+                "/health/ready";
+
+            // Act
+            var response =
+                await _client.GetAsync(
+                    endpoint,
+                    TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal(
+                HttpStatusCode.OK,
+                response.StatusCode);
+        }
+
+        /// <summary>
+        /// Verifies that the aggregate health endpoint reports HTTP 200
+        /// when all registered health checks are healthy.
+        /// </summary>
+        [Fact]
+        public async Task Health_ShouldReturnOk_WhenAllChecksAreHealthy()
+        {
+            // Arrange
+            const string endpoint =
+                "/health";
+
+            // Act
+            var response =
+                await _client.GetAsync(
+                    endpoint,
+                    TestContext.Current.CancellationToken);
+
+            // Assert
+            Assert.Equal(
+                HttpStatusCode.OK,
                 response.StatusCode);
         }
 

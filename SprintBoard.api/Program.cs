@@ -11,6 +11,8 @@ using SprintBoard.Application.DependencyInjection;
 using SprintBoard.Application.Interfaces;
 using SprintBoard.Infrastructure.DependencyInjection;
 using SprintBoard.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -126,6 +128,17 @@ builder.Services.AddDbContext<SprintBoardDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("Default")));
 
+builder.Services
+    .AddHealthChecks()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy(),
+        tags: ["live"])
+    .AddDbContextCheck<SprintBoardDbContext>(
+        name: "database",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]);
+
 var allowedOrigins =
     builder.Configuration
         .GetSection("Cors:AllowedOrigins")
@@ -175,6 +188,26 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate =
+            healthCheck =>
+                healthCheck.Tags.Contains("live")
+    });
+
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate =
+            healthCheck =>
+                healthCheck.Tags.Contains("ready")
+    });
+
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 app.Run();
