@@ -57,8 +57,13 @@ services:
       Email__SmtpPassword: "${SMTP_PASSWORD}"
       Email__FrontendBaseUrl: "http://localhost:3000"
 
+      FileStorage__PublicBaseUrl: "http://localhost:3000"
+
     ports:
       - "8080:8080"
+
+    volumes:
+      - sprintboard-upload-data:/app/wwwroot/uploads
 
   frontend:
     build:
@@ -78,3 +83,4 @@ services:
 
 volumes:
   sprintboard-sql-data:
+  sprintboard-upload-data:

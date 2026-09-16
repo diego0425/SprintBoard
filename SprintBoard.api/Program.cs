@@ -60,6 +60,7 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection("FileStorage"));
 
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<IInvitationLinkBuilder, InvitationLinkBuilder>();
