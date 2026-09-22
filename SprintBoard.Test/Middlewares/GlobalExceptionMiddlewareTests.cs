@@ -394,6 +394,102 @@ namespace SprintBoard.Test.Middlewares
         }
 
         // ============================================================
+        // LOGGING
+        // ============================================================
+
+        /// <summary>
+        /// Verifies that expected application exceptions are logged
+        /// as warnings instead of server errors.
+        /// </summary>
+        [Fact]
+        public async Task Invoke_ShouldLogWarning_WhenHandledExceptionIsThrown()
+        {
+            // Arrange
+            var exception =
+                new ArgumentException(
+                    "Invalid request.");
+
+            var (middleware, context) =
+                CreateMiddleware(
+                    exception);
+
+            context.Request.Method =
+                HttpMethods.Post;
+
+            context.Request.Path =
+                "/api/v1/test";
+
+            // Act
+            await middleware.Invoke(
+                context);
+
+            // Assert
+            _loggerMock.Verify(
+                logger =>
+                    logger.Log(
+                        LogLevel.Warning,
+                        It.IsAny<EventId>(),
+                        It.Is<It.IsAnyType>(
+                            (_, _) =>
+                                true),
+                        It.IsAny<Exception?>(),
+                        It.IsAny<
+                            Func<
+                                It.IsAnyType,
+                                Exception?,
+                                string>>()),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that unexpected exceptions are logged as errors
+        /// together with the original exception instance.
+        /// </summary>
+        [Fact]
+        public async Task Invoke_ShouldLogError_WhenUnexpectedExceptionIsThrown()
+        {
+            // Arrange
+            var exception =
+                new Exception(
+                    "Unexpected failure.");
+
+            var (middleware, context) =
+                CreateMiddleware(
+                    exception);
+
+            context.Request.Method =
+                HttpMethods.Post;
+
+            context.Request.Path =
+                "/api/v1/test";
+
+            // Act
+            await middleware.Invoke(
+                context);
+
+            // Assert
+            _loggerMock.Verify(
+                logger =>
+                    logger.Log(
+                        LogLevel.Error,
+                        It.IsAny<EventId>(),
+                        It.Is<It.IsAnyType>(
+                            (_, _) =>
+                                true),
+                        It.Is<Exception?>(
+                            loggedException =>
+                                ReferenceEquals(
+                                    loggedException,
+                                    exception)),
+                        It.IsAny<
+                            Func<
+                                It.IsAnyType,
+                                Exception?,
+                                string>>()),
+                Times.Once);
+        }
+
+        // ============================================================
         // HELPERS
         // ============================================================
 
