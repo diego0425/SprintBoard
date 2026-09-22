@@ -16,6 +16,7 @@ namespace SprintBoard.Test.Services
     {
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly AuthService _service;
+        private readonly Mock<IPasswordHasher> _passwordHasherMock;
 
         /// <summary>
         /// Initializes the mocked dependencies and service instance.
@@ -24,8 +25,11 @@ namespace SprintBoard.Test.Services
         {
             _userRepositoryMock = new Mock<IUserRepository>();
 
+            _passwordHasherMock = new Mock<IPasswordHasher>();
+
             _service = new AuthService(
-                _userRepositoryMock.Object);
+                _userRepositoryMock.Object,
+                _passwordHasherMock.Object);
         }
 
         // ============================================================
@@ -240,28 +244,45 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration normalizes user information,
+        /// securely hashes the password and persists the new account.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldCreateNormalizeHashAndSaveUser()
         {
             // Arrange
             const string password = "Password123";
 
-            var request = new RegisterRequest
-            {
-                FullName = "   Diego Sousa   ",
-                Username = "   diego0425   ",
-                Email = "   DIEGO@EXAMPLE.COM   ",
-                Password = password,
-                RepeatPassword = password
-            };
+            const string secureHash = "pbkdf2-secure-password-hash";
+
+            var request =
+                new RegisterRequest
+                {
+                    FullName = "   Diego Sousa   ",
+                    Username = "   diego0425   ",
+                    Email = "   DIEGO@EXAMPLE.COM   ",
+                    Password = password,
+                    RepeatPassword = password
+                };
 
             _userRepositoryMock
                 .Setup(repository =>
-                    repository.GetByEmailAsync("diego@example.com"))
-                .ReturnsAsync((User?)null);
+                    repository.GetByEmailAsync(
+                        "diego@example.com"))
+                .ReturnsAsync(
+                    (User?)null);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Hash(password))
+                .Returns(
+                    secureHash);
 
             // Act
-            var result = await _service.RegisterAsync(request);
+            var result =
+                await _service.RegisterAsync(
+                    request);
 
             // Assert
             Assert.NotEqual(
@@ -281,29 +302,32 @@ namespace SprintBoard.Test.Services
                 result.Email);
 
             Assert.Equal(
-                HashPassword(password),
+                secureHash,
                 result.PasswordHash);
 
             Assert.NotEqual(
                 default,
                 result.CreatedAt);
 
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(password),
+                Times.Once);
+
             _userRepositoryMock.Verify(
                 repository =>
-                    repository.GetByEmailAsync("diego@example.com"),
+                    repository.AddAsync(
+                        It.Is<User>(
+                            user =>
+                                user.FullName == "Diego Sousa" &&
+                                user.Username == "diego0425" &&
+                                user.Email == "diego@example.com" &&
+                                user.PasswordHash == secureHash)),
                 Times.Once);
 
             _userRepositoryMock.Verify(
-                repository => repository.AddAsync(
-                    It.Is<User>(user =>
-                        user.FullName == "Diego Sousa" &&
-                        user.Username == "diego0425" &&
-                        user.Email == "diego@example.com" &&
-                        user.PasswordHash == HashPassword(password))),
-                Times.Once);
-
-            _userRepositoryMock.Verify(
-                repository => repository.SaveChangesAsync(),
+                repository =>
+                    repository.SaveChangesAsync(),
                 Times.Once);
         }
 
@@ -392,31 +416,55 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that login fails when the supplied password
+        /// does not match the stored secure password hash.
+        /// </summary>
         [Fact]
         public async Task LoginAsync_ShouldThrowInvalidOperationException_WhenPasswordIsIncorrect()
         {
             // Arrange
-            var user = new User(
-                "Test User",
-                "testuser",
-                "user@example.com",
-                HashPassword("CorrectPassword"));
+            const string storedHash =
+                "pbkdf2-password-hash";
 
-            var request = new LoginRequest
-            {
-                Email = "user@example.com",
-                Password = "WrongPassword"
-            };
+            var user =
+                new User(
+                    "Test User",
+                    "testuser",
+                    "user@example.com",
+                    storedHash);
+
+            var request =
+                new LoginRequest
+                {
+                    Email =
+                        "user@example.com",
+                    Password =
+                        "WrongPassword"
+                };
 
             _userRepositoryMock
                 .Setup(repository =>
-                    repository.GetByEmailAsync("user@example.com"))
+                    repository.GetByEmailAsync(
+                        "user@example.com"))
                 .ReturnsAsync(user);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        storedHash,
+                        "WrongPassword"))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .Failed);
 
             // Act
             var exception =
-                await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => _service.LoginAsync(request));
+                await Assert.ThrowsAsync<
+                    InvalidOperationException>(
+                        () =>
+                            _service.LoginAsync(
+                                request));
 
             // Assert
             Assert.Equal(
@@ -425,35 +473,57 @@ namespace SprintBoard.Test.Services
 
             _userRepositoryMock.Verify(
                 repository =>
-                    repository.GetByEmailAsync("user@example.com"),
-                Times.Once);
+                    repository.SaveChangesAsync(),
+                Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that login returns the user without modifying
+        /// persistence when the current password hash is valid.
+        /// </summary>
         [Fact]
         public async Task LoginAsync_ShouldReturnUser_WhenCredentialsAreValid()
         {
             // Arrange
             const string password = "Password123";
 
-            var user = new User(
-                "Test User",
-                "testuser",
-                "user@example.com",
-                HashPassword(password));
+            const string storedHash = "pbkdf2-password-hash";
 
-            var request = new LoginRequest
-            {
-                Email = "   USER@EXAMPLE.COM   ",
-                Password = password
-            };
+            var user =
+                new User(
+                    "Test User",
+                    "testuser",
+                    "user@example.com",
+                    storedHash);
+
+            var request =
+                new LoginRequest
+                {
+                    Email =
+                        "   USER@EXAMPLE.COM   ",
+                    Password =
+                        password
+                };
 
             _userRepositoryMock
                 .Setup(repository =>
-                    repository.GetByEmailAsync("user@example.com"))
+                    repository.GetByEmailAsync(
+                        "user@example.com"))
                 .ReturnsAsync(user);
 
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        storedHash,
+                        password))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .Success);
+
             // Act
-            var result = await _service.LoginAsync(request);
+            var result =
+                await _service.LoginAsync(
+                    request);
 
             // Assert
             Assert.Same(
@@ -468,20 +538,247 @@ namespace SprintBoard.Test.Services
                 "user@example.com",
                 result.Email);
 
-            _userRepositoryMock.Verify(
-                repository =>
-                    repository.GetByEmailAsync("user@example.com"),
+            Assert.Equal(
+                storedHash,
+                result.PasswordHash);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Verify(
+                        storedHash,
+                        password),
                 Times.Once);
 
             _userRepositoryMock.Verify(
-                repository => repository.AddAsync(
-                    It.IsAny<User>()),
+                repository =>
+                    repository.SaveChangesAsync(),
+                Times.Never);
+        }
+
+
+        /// <summary>
+        /// Verifies that a valid password hash is regenerated when
+        /// the password hasher reports that its configuration is outdated.
+        /// </summary>
+        [Fact]
+        public async Task LoginAsync_ShouldUpgradeHash_WhenRehashIsRequired()
+        {
+            // Arrange
+            const string password =
+                "Password123";
+
+            const string oldHash =
+                "pbkdf2-old-hash";
+
+            const string newHash =
+                "pbkdf2-upgraded-hash";
+
+            var user =
+                new User(
+                    "Test User",
+                    "testuser",
+                    "user@example.com",
+                    oldHash);
+
+            var request =
+                new LoginRequest
+                {
+                    Email =
+                        user.Email,
+                    Password =
+                        password
+                };
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByEmailAsync(
+                        user.Email))
+                .ReturnsAsync(user);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        oldHash,
+                        password))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .SuccessRehashNeeded);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Hash(password))
+                .Returns(newHash);
+
+            // Act
+            var result =
+                await _service.LoginAsync(
+                    request);
+
+            // Assert
+            Assert.Same(
+                user,
+                result);
+
+            Assert.Equal(
+                newHash,
+                user.PasswordHash);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(password),
+                Times.Once);
+
+            _userRepositoryMock.Verify(
+                repository =>
+                    repository.SaveChangesAsync(),
+                Times.Once);
+        }
+
+
+        /// <summary>
+        /// Verifies that a successfully authenticated legacy SHA-256
+        /// account is automatically migrated to the current password format.
+        /// </summary>
+        [Fact]
+        public async Task LoginAsync_ShouldMigrateLegacySha256Hash_WhenPasswordIsValid()
+        {
+            // Arrange
+            const string password =
+                "Password123";
+
+            const string upgradedHash =
+                "pbkdf2-migrated-hash";
+
+            var legacyHash =
+                HashPassword(password);
+
+            var user =
+                new User(
+                    "Legacy User",
+                    "legacyuser",
+                    "legacy@example.com",
+                    legacyHash);
+
+            var request =
+                new LoginRequest
+                {
+                    Email =
+                        user.Email,
+                    Password =
+                        password
+                };
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByEmailAsync(
+                        user.Email))
+                .ReturnsAsync(user);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Hash(password))
+                .Returns(
+                    upgradedHash);
+
+            // Act
+            var result =
+                await _service.LoginAsync(
+                    request);
+
+            // Assert
+            Assert.Same(
+                user,
+                result);
+
+            Assert.Equal(
+                upgradedHash,
+                user.PasswordHash);
+
+            Assert.NotEqual(
+                legacyHash,
+                user.PasswordHash);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(password),
+                Times.Once);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Verify(
+                        It.IsAny<string>(),
+                        It.IsAny<string>()),
                 Times.Never);
 
             _userRepositoryMock.Verify(
-                repository => repository.SaveChangesAsync(),
+                repository =>
+                    repository.SaveChangesAsync(),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that an invalid password cannot migrate or modify
+        /// a legacy SHA-256 account.
+        /// </summary>
+        [Fact]
+        public async Task LoginAsync_ShouldNotMigrateLegacySha256Hash_WhenPasswordIsInvalid()
+        {
+            // Arrange
+            var legacyHash =
+                HashPassword(
+                    "CorrectPassword");
+
+            var user =
+                new User(
+                    "Legacy User",
+                    "legacyuser",
+                    "legacy@example.com",
+                    legacyHash);
+
+            var request =
+                new LoginRequest
+                {
+                    Email =
+                        user.Email,
+                    Password =
+                        "WrongPassword"
+                };
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByEmailAsync(
+                        user.Email))
+                .ReturnsAsync(user);
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    InvalidOperationException>(
+                        () =>
+                            _service.LoginAsync(
+                                request));
+
+            // Assert
+            Assert.Equal(
+                "Invalid credentials.",
+                exception.Message);
+
+            Assert.Equal(
+                legacyHash,
+                user.PasswordHash);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(
+                        It.IsAny<string>()),
+                Times.Never);
+
+            _userRepositoryMock.Verify(
+                repository =>
+                    repository.SaveChangesAsync(),
                 Times.Never);
         }
+
 
         // ============================================================
         // HELPERS

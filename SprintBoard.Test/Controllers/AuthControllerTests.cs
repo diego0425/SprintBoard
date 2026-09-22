@@ -1,6 +1,4 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -14,6 +12,7 @@ using Xunit;
 using Microsoft.Extensions.Logging.Abstractions;
 using SprintBoard.Test.Logging;
 using Microsoft.Extensions.Logging;
+using SprintBoard.Infrastructure.Security;
 
 namespace SprintBoard.Test.Controllers
 {
@@ -29,6 +28,7 @@ namespace SprintBoard.Test.Controllers
         private readonly AuthService _authService;
         private readonly JwtTokenService _jwtTokenService;
         private readonly AuthController _controller;
+        private readonly Pbkdf2PasswordHasher _passwordHasher;
 
         /// <summary>
         /// Initializes the dependencies used by the controller tests.
@@ -37,8 +37,11 @@ namespace SprintBoard.Test.Controllers
         {
             _userRepositoryMock = new Mock<IUserRepository>();
 
+            _passwordHasher = new Pbkdf2PasswordHasher();
+
             _authService = new AuthService(
-                _userRepositoryMock.Object);
+                _userRepositoryMock.Object,
+                _passwordHasher);
 
             _jwtTokenService = new JwtTokenService(
                 Options.Create(
@@ -553,17 +556,12 @@ namespace SprintBoard.Test.Controllers
         }
 
         /// <summary>
-        /// Generates a password hash using the same SHA-256 algorithm
-        /// currently used by the authentication service.
+        /// Generates a secure password hash using the same
+        /// implementation configured for the application.
         /// </summary>
-        private static string HashPassword(string password)
+        private string HashPassword(string password)
         {
-            using var sha256 = SHA256.Create();
-
-            var hashBytes = sha256.ComputeHash(
-                Encoding.UTF8.GetBytes(password));
-
-            return Convert.ToHexString(hashBytes);
+            return _passwordHasher.Hash(password);
         }
     }
 }
