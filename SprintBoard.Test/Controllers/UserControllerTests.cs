@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SprintBoard.api.Controllers;
 using SprintBoard.api.Services;
@@ -8,6 +9,8 @@ using SprintBoard.Application.Interfaces;
 using SprintBoard.Application.Services;
 using SprintBoard.Domain.Entities;
 using Xunit;
+using SprintBoard.Test.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SprintBoard.Test.Controllers
 {
@@ -44,7 +47,8 @@ namespace SprintBoard.Test.Controllers
 
             _controller = new UsersController(
                 _userService,
-                _currentUserServiceMock.Object);
+                _currentUserServiceMock.Object,
+                NullLogger<UsersController>.Instance);
         }
 
         // ============================================================
@@ -588,6 +592,98 @@ namespace SprintBoard.Test.Controllers
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a successful profile image upload records
+        /// useful metadata without exposing the original file name.
+        /// </summary>
+        [Fact]
+        public async Task UpdateProfileImage_ShouldLogSafeMetadata_WhenUploadSucceeds()
+        {
+            // Arrange
+            var user =
+                CreateUser();
+
+            const string imageUrl =
+                "https://example.com/profile.jpg";
+
+            const string fileName =
+                "very-secret-file-name.jpg";
+
+            byte[] fileContent =
+            [
+                1,
+        2,
+        3,
+        4
+            ];
+
+            var file =
+                CreateFormFile(
+                    fileContent,
+                    fileName,
+                    "image/jpeg");
+
+            var logger =
+                new TestLogger<
+                    UsersController>();
+
+            _currentUserServiceMock
+                .Setup(service =>
+                    service.GetUserId())
+                .Returns(user.Id);
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
+                .ReturnsAsync(user);
+
+            _fileStorageServiceMock
+                .Setup(service =>
+                    service.SaveUserProfileImageAsync(
+                        It.IsAny<Stream>(),
+                        fileName,
+                        "image/jpeg"))
+                .ReturnsAsync(imageUrl);
+
+            var controller =
+                new UsersController(
+                    _userService,
+                    _currentUserServiceMock.Object,
+                    logger);
+
+            // Act
+            await controller.UpdateProfileImage(
+                file);
+
+            // Assert
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "User profile image updated.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                user.Id.ToString(),
+                logEntry.Message);
+
+            Assert.Contains(
+                "image/jpeg",
+                logEntry.Message);
+
+            Assert.Contains(
+                fileContent.Length.ToString(),
+                logEntry.Message);
+
+            Assert.DoesNotContain(
+                fileName,
+                logEntry.Message);
+        }
+
         // ============================================================
         // UPDATE ME
         // ============================================================
@@ -769,6 +865,65 @@ namespace SprintBoard.Test.Controllers
                 repository =>
                     repository.SaveChangesAsync(),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that successfully updating the authenticated
+        /// user's profile produces an informational business event.
+        /// </summary>
+        [Fact]
+        public async Task UpdateMe_ShouldLogInformation_WhenProfileIsUpdated()
+        {
+            // Arrange
+            var user =
+                CreateUser();
+
+            var request =
+                new UpdateUserRequest
+                {
+                    FullName =
+                        "Updated User"
+                };
+
+            var logger =
+                new TestLogger<
+                    UsersController>();
+
+            _currentUserServiceMock
+                .Setup(service =>
+                    service.GetUserId())
+                .Returns(user.Id);
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
+                .ReturnsAsync(user);
+
+            var controller =
+                new UsersController(
+                    _userService,
+                    _currentUserServiceMock.Object,
+                    logger);
+
+            // Act
+            await controller.UpdateMe(
+                request);
+
+            // Assert
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "User profile updated.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                user.Id.ToString(),
+                logEntry.Message);
         }
 
         // ============================================================

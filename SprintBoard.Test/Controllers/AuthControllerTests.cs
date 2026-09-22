@@ -11,6 +11,9 @@ using SprintBoard.Application.Interfaces;
 using SprintBoard.Application.Services;
 using SprintBoard.Domain.Entities;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
+using SprintBoard.Test.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SprintBoard.Test.Controllers
 {
@@ -49,7 +52,8 @@ namespace SprintBoard.Test.Controllers
 
             _controller = new AuthController(
                 _authService,
-                _jwtTokenService);
+                _jwtTokenService,
+                NullLogger<AuthController>.Instance);
         }
 
         // ============================================================
@@ -238,6 +242,76 @@ namespace SprintBoard.Test.Controllers
             _userRepositoryMock.Verify(
                 repository => repository.SaveChangesAsync(),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that successful user registration produces an
+        /// informational business event without exposing sensitive data.
+        /// </summary>
+        [Fact]
+        public async Task Register_ShouldLogInformationWithoutSensitiveData_WhenRegistrationSucceeds()
+        {
+            // Arrange
+            var request =
+                CreateValidRegisterRequest();
+
+            var logger =
+                new TestLogger<AuthController>();
+
+            User? createdUser =
+                null;
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByEmailAsync(
+                        "user@example.com"))
+                .ReturnsAsync(
+                    (User?)null);
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.AddAsync(
+                        It.IsAny<User>()))
+                .Callback<User>(
+                    user =>
+                        createdUser = user)
+                .Returns(Task.CompletedTask);
+
+            var controller =
+                new AuthController(
+                    _authService,
+                    _jwtTokenService,
+                    logger);
+
+            // Act
+            await controller.Register(
+                request);
+
+            // Assert
+            Assert.NotNull(
+                createdUser);
+
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "User registered.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                createdUser!.Id.ToString(),
+                logEntry.Message);
+
+            Assert.DoesNotContain(
+                request.Password,
+                logEntry.Message);
+
+            Assert.DoesNotContain(
+                request.Email,
+                logEntry.Message);
         }
 
         // ============================================================

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SprintBoard.api.Controllers;
 using SprintBoard.api.Services;
@@ -8,6 +9,8 @@ using SprintBoard.Application.Services;
 using SprintBoard.Domain.Entities;
 using SprintBoard.Domain.Enums;
 using Xunit;
+using SprintBoard.Test.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SprintBoard.Test.Controllers
 {
@@ -58,7 +61,8 @@ namespace SprintBoard.Test.Controllers
             _controller =
                 new InvitationsController(
                     _invitationService,
-                    _currentUserServiceMock.Object);
+                    _currentUserServiceMock.Object,
+                    NullLogger<InvitationsController>.Instance);
 
             _boardInvitationRepositoryMock
                 .Setup(repository =>
@@ -605,6 +609,90 @@ namespace SprintBoard.Test.Controllers
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation produces an
+        /// informational event without exposing the invitation token.
+        /// </summary>
+        [Fact]
+        public async Task Accept_ShouldLogInformationWithoutToken_WhenInvitationIsAccepted()
+        {
+            // Arrange
+            var user =
+                CreateUser(
+                    email:
+                        "member@example.com");
+
+            var invitation =
+                CreateInvitation(
+                    email:
+                        user.Email);
+
+            var request =
+                new RespondToInvitationRequest
+                {
+                    Token =
+                        invitation.Token
+                };
+
+            var logger =
+                new TestLogger<
+                    InvitationsController>();
+
+            SetupCurrentUser(
+                user.Id);
+
+            _boardInvitationRepositoryMock
+                .Setup(repository =>
+                    repository.GetByTokenAsync(
+                        invitation.Token))
+                .ReturnsAsync(
+                    invitation);
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
+                .ReturnsAsync(
+                    user);
+
+            _boardMemberRepositoryMock
+                .Setup(repository =>
+                    repository.ExistsAsync(
+                        invitation.BoardId,
+                        user.Id))
+                .ReturnsAsync(
+                    false);
+
+            var controller =
+                new InvitationsController(
+                    _invitationService,
+                    _currentUserServiceMock.Object,
+                    logger);
+
+            // Act
+            await controller.Accept(
+                request);
+
+            // Assert
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "Board invitation accepted.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                user.Id.ToString(),
+                logEntry.Message);
+
+            Assert.DoesNotContain(
+                invitation.Token,
+                logEntry.Message);
+        }
+
         // ============================================================
         // DECLINE
         // ============================================================
@@ -1017,6 +1105,79 @@ namespace SprintBoard.Test.Controllers
                     repository.GetByIdAsync(
                         It.IsAny<Guid>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that declining an invitation produces an
+        /// informational event without exposing the invitation token.
+        /// </summary>
+        [Fact]
+        public async Task Decline_ShouldLogInformationWithoutToken_WhenInvitationIsDeclined()
+        {
+            // Arrange
+            var user =
+                CreateUser(
+                    email: "member@example.com");
+
+            var invitation =
+                CreateInvitation(
+                    email: user.Email);
+
+            var request =
+                new RespondToInvitationRequest
+                {
+                    Token = invitation.Token
+                };
+
+            var logger =
+                new TestLogger<
+                    InvitationsController>();
+
+            SetupCurrentUser(
+                user.Id);
+
+            _boardInvitationRepositoryMock
+                .Setup(repository =>
+                    repository.GetByTokenAsync(
+                        invitation.Token))
+                .ReturnsAsync(
+                    invitation);
+
+            _userRepositoryMock
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
+                .ReturnsAsync(
+                    user);
+
+            var controller =
+                new InvitationsController(
+                    _invitationService,
+                    _currentUserServiceMock.Object,
+                    logger);
+
+            // Act
+            await controller.Decline(
+                request);
+
+            // Assert
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "Board invitation declined.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                user.Id.ToString(),
+                logEntry.Message);
+
+            Assert.DoesNotContain(
+                invitation.Token,
+                logEntry.Message);
         }
 
         // ============================================================

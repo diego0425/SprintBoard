@@ -11,6 +11,9 @@ using SprintBoard.Application.Services;
 using SprintBoard.Domain.Entities;
 using SprintBoard.Domain.Enums;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
+using SprintBoard.Test.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace SprintBoard.Test.Controllers
 {
@@ -83,7 +86,8 @@ namespace SprintBoard.Test.Controllers
             _controller = new BoardsController(
                 _boardService,
                 _cardService,
-                _currentUserServiceMock.Object);
+                _currentUserServiceMock.Object,
+                NullLogger<BoardsController>.Instance);
         }
 
         // ============================================================
@@ -252,6 +256,73 @@ namespace SprintBoard.Test.Controllers
                 repository => repository.AddAsync(
                     It.IsAny<BoardMember>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that successful board creation produces an
+        /// informational business event containing the board and owner ids.
+        /// </summary>
+        [Fact]
+        public async Task Create_ShouldLogInformation_WhenBoardIsCreated()
+        {
+            // Arrange
+            var userId =
+                Guid.NewGuid();
+
+            var logger =
+                new TestLogger<BoardsController>();
+
+            var request =
+                new CreateBoardRequest
+                {
+                    Name = "Logging Board"
+                };
+
+            _currentUserServiceMock
+                .Setup(service =>
+                    service.GetUserId())
+                .Returns(userId);
+
+            var controller =
+                new BoardsController(
+                    _boardService,
+                    _cardService,
+                    _currentUserServiceMock.Object,
+                    logger);
+
+            // Act
+            var result =
+                await controller.Create(
+                    request);
+
+            // Assert
+            var createdResult =
+                Assert.IsType<
+                    CreatedAtActionResult>(
+                        result.Result);
+
+            var response =
+                Assert.IsType<
+                    BoardResponse>(
+                        createdResult.Value);
+
+            var logEntry =
+                Assert.Single(
+                    logger.Entries,
+                    entry =>
+                        entry.Level ==
+                            LogLevel.Information &&
+                        entry.Message.Contains(
+                            "Board created.",
+                            StringComparison.Ordinal));
+
+            Assert.Contains(
+                response.Id.ToString(),
+                logEntry.Message);
+
+            Assert.Contains(
+                userId.ToString(),
+                logEntry.Message);
         }
 
         // ============================================================
