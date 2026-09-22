@@ -13,8 +13,20 @@ using SprintBoard.Infrastructure.DependencyInjection;
 using SprintBoard.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Serilog;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSerilog(
+    (services, loggerConfiguration) =>
+    {
+        loggerConfiguration
+            .ReadFrom.Configuration(
+                builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext();
+    });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -178,8 +190,45 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-app.UseCors("AllowFrontend");
+
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} " +
+        "responded {StatusCode} in " +
+        "{Elapsed:0.0000} ms";
+
+    options.GetLevel =
+        (httpContext, elapsed, exception) =>
+        {
+            if (exception is not null ||
+                httpContext.Response.StatusCode >= 500)
+            {
+                return LogEventLevel.Error;
+            }
+
+            if (httpContext.Response.StatusCode >= 400)
+            {
+                return LogEventLevel.Warning;
+            }
+
+            return LogEventLevel.Information;
+        };
+
+    options.EnrichDiagnosticContext =
+        (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set(
+                "CorrelationId",
+                httpContext.TraceIdentifier);
+        };
+});
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+app.UseCors("AllowFrontend");
 
 if (app.Environment.IsDevelopment())
 {
