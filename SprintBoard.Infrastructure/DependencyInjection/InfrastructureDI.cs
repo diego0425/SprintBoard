@@ -5,6 +5,7 @@ using SprintBoard.Application.Interfaces;
 using SprintBoard.Infrastructure.Email;
 using SprintBoard.Infrastructure.Persistence;
 using SprintBoard.Infrastructure.Persistence.Repositories;
+using SprintBoard.Infrastructure.Security;
 
 namespace SprintBoard.Infrastructure.DependencyInjection
 {
@@ -39,6 +40,7 @@ namespace SprintBoard.Infrastructure.DependencyInjection
             services.AddScoped<IBoardInvitationRepository, BoardInvitationRepository>();
             services.AddScoped<ICardTaskRepository, CardTaskRepository>();
             services.AddScoped<IEmailService, SmtpEmailService>();
+            services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 
             return services;
         }
