@@ -16,22 +16,29 @@ public sealed class InvitationsController : ControllerBase
 {
     private readonly InvitationService _invitationService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<InvitationsController> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="InvitationsController"/> class.
+    /// Initializes a new instance of the
+    /// <see cref="InvitationsController"/> class.
     /// </summary>
     /// <param name="invitationService">
-    /// Application service responsible for accepting and declining board invitations.
+    /// Application service responsible for invitation responses.
     /// </param>
     /// <param name="currentUserService">
-    /// Service used to obtain the identifier of the currently authenticated user.
+    /// Service used to obtain the authenticated user.
+    /// </param>
+    /// <param name="logger">
+    /// Logger used to record invitation business events.
     /// </param>
     public InvitationsController(
         InvitationService invitationService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILogger<InvitationsController> logger)
     {
         _invitationService = invitationService;
         _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -49,6 +56,10 @@ public sealed class InvitationsController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
 
         await _invitationService.AcceptAsync(request.Token, currentUserId);
+
+        _logger.LogInformation(
+            "Board invitation accepted. UserId: {UserId}",
+            currentUserId);
 
         return NoContent();
     }
@@ -68,6 +79,10 @@ public sealed class InvitationsController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
 
         await _invitationService.DeclineAsync(request.Token, currentUserId);
+
+        _logger.LogInformation(
+            "Board invitation declined. UserId: {UserId}",
+            currentUserId);
 
         return NoContent();
     }

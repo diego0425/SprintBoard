@@ -23,22 +23,29 @@ public sealed class UsersController : ControllerBase
 
     private readonly UserService _userService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<UsersController> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UsersController"/> class.
+    /// Initializes a new instance of the
+    /// <see cref="UsersController"/> class.
     /// </summary>
     /// <param name="userService">
-    /// Application service responsible for retrieving and updating user data.
+    /// Application service responsible for user operations.
     /// </param>
     /// <param name="currentUserService">
-    /// Service used to obtain the identifier of the currently authenticated user.
+    /// Service used to obtain the authenticated user.
+    /// </param>
+    /// <param name="logger">
+    /// Logger used to record user-profile business events.
     /// </param>
     public UsersController(
         UserService userService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILogger<UsersController> logger)
     {
         _userService = userService;
         _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -101,6 +108,15 @@ public sealed class UsersController : ControllerBase
             file.FileName,
             file.ContentType);
 
+        _logger.LogInformation(
+            "User profile image updated. " +
+            "UserId: {UserId} " +
+            "ContentType: {ContentType} " +
+            "FileSizeBytes: {FileSizeBytes}",
+            currentUserId,
+            file.ContentType,
+            file.Length);
+
         return Ok(new { profileImageUrl });
     }
 
@@ -119,6 +135,10 @@ public sealed class UsersController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
 
         await _userService.UpdateMeAsync(currentUserId, request);
+
+        _logger.LogInformation(
+            "User profile updated. UserId: {UserId}",
+            currentUserId);
 
         return NoContent();
     }

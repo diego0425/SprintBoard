@@ -14,20 +14,31 @@ public sealed class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
     private readonly JwtTokenService _jwtTokenService;
+    private readonly ILogger<AuthController> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AuthController"/> class.
+    /// Initializes a new instance of the
+    /// <see cref="AuthController"/> class.
     /// </summary>
     /// <param name="authService">
-    /// Application service responsible for registering users and validating login credentials.
+    /// Application service responsible for registration
+    /// and authentication.
     /// </param>
     /// <param name="jwtTokenService">
-    /// Service responsible for generating JWT access tokens after a successful authentication operation.
+    /// Service responsible for creating JWT access tokens.
     /// </param>
-    public AuthController(AuthService authService, JwtTokenService jwtTokenService)
+    /// <param name="logger">
+    /// Logger used to record authentication-related
+    /// business events.
+    /// </param>
+    public AuthController(
+        AuthService authService,
+        JwtTokenService jwtTokenService,
+        ILogger<AuthController> logger)
     {
         _authService = authService;
         _jwtTokenService = jwtTokenService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -44,6 +55,8 @@ public sealed class AuthController : ControllerBase
     {
         var user = await _authService.RegisterAsync(request);
         var (accessToken, expiresAtUtc) = _jwtTokenService.CreateToken(user);
+
+        _logger.LogInformation("User registered. UserId: {UserId}", user.Id);
 
         return Ok(new AuthResponse
         {

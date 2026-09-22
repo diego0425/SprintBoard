@@ -18,6 +18,7 @@ public sealed class BoardsController : ControllerBase
     private readonly BoardService _boardService;
     private readonly CardService _cardService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<BoardsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BoardsController"/> class.
@@ -31,14 +32,20 @@ public sealed class BoardsController : ControllerBase
     /// <param name="currentUserService">
     /// Service used to obtain the identifier of the currently authenticated user.
     /// </param>
+    /// <param name="logger">
+    /// Logger used to record authentication-related
+    /// business events.
+    /// </param>
     public BoardsController(
         BoardService boardService,
         CardService cardService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILogger<BoardsController> logger)
     {
         _boardService = boardService;
         _cardService = cardService;
         _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -56,6 +63,11 @@ public sealed class BoardsController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
         var createdBoard = await _boardService.CreateAsync(request.Name, currentUserId);
 
+        _logger.LogInformation(
+            "Board created. BoardId: {BoardId} OwnerUserId: {UserId}", 
+            createdBoard.Id, 
+            currentUserId);
+
         return CreatedAtAction(nameof(GetById), new { id = createdBoard.Id }, createdBoard);
     }
 
@@ -72,9 +84,7 @@ public sealed class BoardsController : ControllerBase
     /// A <see cref="CardResponse"/> describing the newly created card.
     /// </returns>
     [HttpPost("{boardId:guid}/cards")]
-    public async Task<ActionResult<CardResponse>> CreateCard(
-        Guid boardId,
-        [FromBody] CreateCardRequest request)
+    public async Task<ActionResult<CardResponse>> CreateCard(Guid boardId, [FromBody] CreateCardRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
         var createdCard = await _cardService.CreateAsync(boardId, currentUserId, request);
@@ -132,15 +142,22 @@ public sealed class BoardsController : ControllerBase
     /// A <see cref="BoardInvitationResponse"/> representing the created invitation.
     /// </returns>
     [HttpPost("{boardId:guid}/invitations")]
-    public async Task<ActionResult<BoardInvitationResponse>> CreateInvitation(
-        Guid boardId,
-        [FromBody] CreateBoardInvitationRequest request)
+    public async Task<ActionResult<BoardInvitationResponse>> CreateInvitation(Guid boardId, [FromBody] CreateBoardInvitationRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
         var invitation = await _boardService.CreateInvitationAsync(
             boardId,
             currentUserId,
             request.Email);
+
+        _logger.LogInformation(
+            "Board invitation created. " +
+            "InvitationId: {InvitationId} " +
+            "BoardId: {BoardId} " +
+            "RequestedByUserId: {UserId}",
+            invitation.Id,
+            boardId,
+            currentUserId);
 
         return Ok(invitation);
     }
@@ -170,6 +187,17 @@ public sealed class BoardsController : ControllerBase
             request.MemberUserId,
             request.NewRole);
 
+        _logger.LogInformation(
+            "Board member role changed. " +
+            "BoardId: {BoardId} " +
+            "MemberUserId: {MemberUserId} " +
+            "NewRole: {NewRole} " +
+            "ChangedByUserId: {UserId}",
+            boardId,
+            request.MemberUserId,
+            request.NewRole,
+            currentUserId);
+
         return NoContent();
     }
 
@@ -195,6 +223,15 @@ public sealed class BoardsController : ControllerBase
             currentUserId,
             memberUserId);
 
+        _logger.LogInformation(
+            "Board member removed. " +
+            "BoardId: {BoardId} " +
+            "MemberUserId: {MemberUserId} " +
+            "RemovedByUserId: {UserId}",
+            boardId,
+            memberUserId,
+            currentUserId);
+
         return NoContent();
     }
 
@@ -213,6 +250,12 @@ public sealed class BoardsController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
 
         await _boardService.LeaveBoardAsync(boardId, currentUserId);
+
+        _logger.LogInformation(
+            "User left board. " +
+            "BoardId: {BoardId} UserId: {UserId}",
+            boardId,
+            currentUserId);
 
         return NoContent();
     }
@@ -271,6 +314,12 @@ public sealed class BoardsController : ControllerBase
         var currentUserId = _currentUserService.GetUserId();
 
         await _boardService.UpdateAsync(boardId, currentUserId, request);
+
+        _logger.LogInformation(
+            "Board updated. " +
+            "BoardId: {BoardId} UpdatedByUserId: {UserId}",
+            boardId,
+            currentUserId);
 
         return NoContent();
     }
