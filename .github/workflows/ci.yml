@@ -111,3 +111,60 @@ jobs:
 
       - name: Build frontend image
         run: docker compose build frontend
+
+  # ============================================================
+  # PUBLISH CONTAINER IMAGES
+  # ============================================================
+
+  publish:
+    name: Publish Images
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend
+      - frontend
+      - docker
+
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: SprintBoard.api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/diego0425/sprintboard-api:latest
+            ghcr.io/diego0425/sprintboard-api:${{ github.sha }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sprintboard-web/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+          tags: |
+            ghcr.io/diego0425/sprintboard-web:latest
+            ghcr.io/diego0425/sprintboard-web:${{ github.sha }}
