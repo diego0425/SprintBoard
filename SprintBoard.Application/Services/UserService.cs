@@ -1,7 +1,5 @@
 using SprintBoard.Application.DTOs.User;
 using SprintBoard.Application.Interfaces;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace SprintBoard.Application.Services
 {
@@ -12,6 +10,7 @@ namespace SprintBoard.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IPasswordHasher _passwordHasher;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UserService"/> class.
@@ -22,10 +21,11 @@ namespace SprintBoard.Application.Services
         /// <param name="fileStorageService">
         /// Storage service used to save user profile images and return their persisted location.
         /// </param>
-        public UserService(IUserRepository userRepository, IFileStorageService fileStorageService)
+        public UserService(IUserRepository userRepository, IFileStorageService fileStorageService, IPasswordHasher passwordHasher)
         {
             _userRepository = userRepository;
             _fileStorageService = fileStorageService;
+            _passwordHasher = passwordHasher;
         }
 
         /// <summary>
@@ -111,12 +111,14 @@ namespace SprintBoard.Application.Services
 
             if (!string.IsNullOrWhiteSpace(request.NewPassword) && !string.IsNullOrWhiteSpace(request.OldPassword))
             {
-                var currentPasswordHash = HashPassword(request.OldPassword);
+                var verificationResult = _passwordHasher.Verify(user.PasswordHash, request.OldPassword);
 
-                if (!string.Equals(user.PasswordHash, currentPasswordHash, StringComparison.Ordinal))
+                if (verificationResult == PasswordVerificationOutcome.Failed)
+                {
                     throw new ArgumentException("Password does not match.");
+                }
 
-                var newPasswordHash = HashPassword(request.NewPassword);
+                var newPasswordHash = _passwordHasher.Hash(request.NewPassword);
 
                 user.ChangePassword(newPasswordHash);
             }
@@ -159,22 +161,6 @@ namespace SprintBoard.Application.Services
             await _userRepository.SaveChangesAsync();
 
             return imageUrl;
-        }
-
-        /// <summary>
-        /// Computes the SHA-256 hash used by the current password update workflow.
-        /// </summary>
-        /// <param name="password">
-        /// The plain-text password to hash.
-        /// </param>
-        /// <returns>
-        /// The hexadecimal representation of the password hash.
-        /// </returns>
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToHexString(hashBytes);
         }
     }
 }

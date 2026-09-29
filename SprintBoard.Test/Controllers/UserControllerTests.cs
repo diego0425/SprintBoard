@@ -22,6 +22,7 @@ namespace SprintBoard.Test.Controllers
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IFileStorageService> _fileStorageServiceMock;
         private readonly Mock<ICurrentUserService> _currentUserServiceMock;
+        private readonly Mock<IPasswordHasher> _passwordHasherMock;
 
         private readonly UserService _userService;
         private readonly UsersController _controller;
@@ -32,18 +33,18 @@ namespace SprintBoard.Test.Controllers
         /// </summary>
         public UsersControllerTests()
         {
-            _userRepositoryMock =
-                new Mock<IUserRepository>();
+            _userRepositoryMock = new Mock<IUserRepository>();
 
-            _fileStorageServiceMock =
-                new Mock<IFileStorageService>();
+            _fileStorageServiceMock = new Mock<IFileStorageService>();
 
-            _currentUserServiceMock =
-                new Mock<ICurrentUserService>();
+            _currentUserServiceMock = new Mock<ICurrentUserService>();
+
+            _passwordHasherMock = new Mock<IPasswordHasher>();
 
             _userService = new UserService(
                 _userRepositoryMock.Object,
-                _fileStorageServiceMock.Object);
+                _fileStorageServiceMock.Object,
+                _passwordHasherMock.Object);
 
             _controller = new UsersController(
                 _userService,

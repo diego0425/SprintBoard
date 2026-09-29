@@ -1,10 +1,9 @@
-﻿using Moq;
+﻿using Microsoft.AspNetCore.Identity;
+using Moq;
 using SprintBoard.Application.DTOs.User;
 using SprintBoard.Application.Interfaces;
 using SprintBoard.Application.Services;
 using SprintBoard.Domain.Entities;
-using System.Security.Cryptography;
-using System.Text;
 using Xunit;
 
 namespace SprintBoard.Test.Services
@@ -16,6 +15,7 @@ namespace SprintBoard.Test.Services
     {
         private readonly Mock<IUserRepository> _userRepositoryMock;
         private readonly Mock<IFileStorageService> _fileStorageServiceMock;
+        private readonly Mock<IPasswordHasher> _passwordHasherMock;
         private readonly UserService _service;
 
         /// <summary>
@@ -25,10 +25,12 @@ namespace SprintBoard.Test.Services
         {
             _userRepositoryMock = new Mock<IUserRepository>();
             _fileStorageServiceMock = new Mock<IFileStorageService>();
+            _passwordHasherMock = new Mock<IPasswordHasher>();
 
             _service = new UserService(
                 _userRepositoryMock.Object,
-                _fileStorageServiceMock.Object);
+                _fileStorageServiceMock.Object,
+                _passwordHasherMock.Object);
         }
 
         // ============================================================
@@ -319,27 +321,62 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the authenticated user can change the
+        /// password when the current password is valid.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldChangePassword_WhenOldPasswordIsCorrect()
         {
             // Arrange
-            const string oldPassword = "OldPassword123";
-            const string newPassword = "NewPassword456";
+            const string oldPassword =
+                "OldPassword123";
 
-            var user = CreateUser(
-                passwordHash: HashPassword(oldPassword));
+            const string newPassword =
+                "NewPassword456";
 
-            var originalPasswordHash = user.PasswordHash;
+            const string currentHash =
+                "pbkdf2-current-hash";
 
-            var request = new UpdateUserRequest
-            {
-                OldPassword = oldPassword,
-                NewPassword = newPassword
-            };
+            const string newHash =
+                "pbkdf2-new-hash";
+
+            var user =
+                CreateUser(
+                    passwordHash:
+                        currentHash);
+
+            var request =
+                new UpdateUserRequest
+                {
+                    OldPassword =
+                        oldPassword,
+
+                    NewPassword =
+                        newPassword
+                };
 
             _userRepositoryMock
-                .Setup(repository => repository.GetByIdAsync(user.Id))
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
                 .ReturnsAsync(user);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        currentHash,
+                        oldPassword))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .Success);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Hash(
+                        newPassword))
+                .Returns(
+                    newHash);
 
             // Act
             await _service.UpdateMeAsync(
@@ -347,46 +384,81 @@ namespace SprintBoard.Test.Services
                 request);
 
             // Assert
-            Assert.NotEqual(
-                originalPasswordHash,
+            Assert.Equal(
+                newHash,
                 user.PasswordHash);
 
-            Assert.Equal(
-                HashPassword(newPassword),
-                user.PasswordHash);
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Verify(
+                        currentHash,
+                        oldPassword),
+                Times.Once);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(
+                        newPassword),
+                Times.Once);
 
             _userRepositoryMock.Verify(
-                repository => repository.SaveChangesAsync(),
+                repository =>
+                    repository.SaveChangesAsync(),
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the password is not changed when the
+        /// current password supplied by the user is invalid.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldThrowArgumentException_WhenOldPasswordIsIncorrect()
         {
             // Arrange
-            const string correctPassword = "CorrectPassword";
-            const string wrongPassword = "WrongPassword";
+            const string currentHash =
+                "pbkdf2-current-hash";
 
-            var user = CreateUser(
-                passwordHash: HashPassword(correctPassword));
+            const string wrongPassword =
+                "WrongPassword";
 
-            var originalPasswordHash = user.PasswordHash;
+            var user =
+                CreateUser(
+                    passwordHash:
+                        currentHash);
 
-            var request = new UpdateUserRequest
-            {
-                OldPassword = wrongPassword,
-                NewPassword = "NewPassword"
-            };
+            var request =
+                new UpdateUserRequest
+                {
+                    OldPassword =
+                        wrongPassword,
+
+                    NewPassword =
+                        "NewPassword456"
+                };
 
             _userRepositoryMock
-                .Setup(repository => repository.GetByIdAsync(user.Id))
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
                 .ReturnsAsync(user);
 
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        currentHash,
+                        wrongPassword))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .Failed);
+
             // Act
-            var exception = await Assert.ThrowsAsync<ArgumentException>(
-                () => _service.UpdateMeAsync(
-                    user.Id,
-                    request));
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            _service.UpdateMeAsync(
+                                user.Id,
+                                request));
 
             // Assert
             Assert.Equal(
@@ -394,11 +466,18 @@ namespace SprintBoard.Test.Services
                 exception.Message);
 
             Assert.Equal(
-                originalPasswordHash,
+                currentHash,
                 user.PasswordHash);
 
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(
+                        It.IsAny<string>()),
+                Times.Never);
+
             _userRepositoryMock.Verify(
-                repository => repository.SaveChangesAsync(),
+                repository =>
+                    repository.SaveChangesAsync(),
                 Times.Never);
         }
 
@@ -407,7 +486,7 @@ namespace SprintBoard.Test.Services
         {
             // Arrange
             var user = CreateUser(
-                passwordHash: HashPassword("CurrentPassword"));
+                passwordHash: "pbkdf2-current-hash");
 
             var originalHash = user.PasswordHash;
 
@@ -440,7 +519,7 @@ namespace SprintBoard.Test.Services
         {
             // Arrange
             var user = CreateUser(
-                passwordHash: HashPassword("CurrentPassword"));
+                passwordHash: "pbkdf2-current-hash");
 
             var originalHash = user.PasswordHash;
 
@@ -512,34 +591,79 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the user's full name, username and password
+        /// can be updated together when the current password is valid.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldUpdateFullNameUsernameAndPasswordTogether()
         {
             // Arrange
-            const string oldPassword = "OldPassword";
-            const string newPassword = "NewPassword";
+            const string oldPassword =
+                "OldPassword";
 
-            var user = CreateUser(
-                fullName: "Old Name",
-                username: "oldusername",
-                passwordHash: HashPassword(oldPassword));
+            const string newPassword =
+                "NewPassword";
 
-            var request = new UpdateUserRequest
-            {
-                FullName = "   New Name   ",
-                Username = "   newusername   ",
-                OldPassword = oldPassword,
-                NewPassword = newPassword
-            };
+            const string currentHash =
+                "pbkdf2-current-hash";
+
+            const string newHash =
+                "pbkdf2-new-hash";
+
+            var user =
+                CreateUser(
+                    fullName:
+                        "Old Name",
+                    username:
+                        "oldusername",
+                    passwordHash:
+                        currentHash);
+
+            var request =
+                new UpdateUserRequest
+                {
+                    FullName =
+                        "   New Name   ",
+
+                    Username =
+                        "   newusername   ",
+
+                    OldPassword =
+                        oldPassword,
+
+                    NewPassword =
+                        newPassword
+                };
 
             _userRepositoryMock
-                .Setup(repository => repository.GetByIdAsync(user.Id))
+                .Setup(repository =>
+                    repository.GetByIdAsync(
+                        user.Id))
                 .ReturnsAsync(user);
 
             _userRepositoryMock
                 .Setup(repository =>
-                    repository.GetByUsernameAsync("newusername"))
-                .ReturnsAsync((User?)null);
+                    repository.GetByUsernameAsync(
+                        "newusername"))
+                .ReturnsAsync(
+                    (User?)null);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Verify(
+                        currentHash,
+                        oldPassword))
+                .Returns(
+                    PasswordVerificationOutcome
+                        .Success);
+
+            _passwordHasherMock
+                .Setup(hasher =>
+                    hasher.Hash(
+                        newPassword))
+                .Returns(
+                    newHash);
 
             // Act
             await _service.UpdateMeAsync(
@@ -556,11 +680,25 @@ namespace SprintBoard.Test.Services
                 user.Username);
 
             Assert.Equal(
-                HashPassword(newPassword),
+                newHash,
                 user.PasswordHash);
 
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Verify(
+                        currentHash,
+                        oldPassword),
+                Times.Once);
+
+            _passwordHasherMock.Verify(
+                hasher =>
+                    hasher.Hash(
+                        newPassword),
+                Times.Once);
+
             _userRepositoryMock.Verify(
-                repository => repository.SaveChangesAsync(),
+                repository =>
+                    repository.SaveChangesAsync(),
                 Times.Once);
         }
 
@@ -763,20 +901,6 @@ namespace SprintBoard.Test.Services
                 username,
                 email,
                 passwordHash);
-        }
-
-        /// <summary>
-        /// Creates the SHA-256 hash used by the current UserService
-        /// password update workflow.
-        /// </summary>
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-
-            var hashBytes = sha256.ComputeHash(
-                Encoding.UTF8.GetBytes(password));
-
-            return Convert.ToHexString(hashBytes);
         }
     }
 }
