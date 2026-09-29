@@ -4,7 +4,7 @@ SprintBoard is a full-stack collaborative task management application inspired b
 
 The project was built to explore modern backend and full-stack engineering practices using **C#/.NET and React**, with a strong focus on **Clean Architecture, authentication, authorization, automated testing, Docker, production-oriented configuration, health monitoring, structured logging and collaborative workflows**.
 
----
+----
 
 # 🚀 Technologies
 
