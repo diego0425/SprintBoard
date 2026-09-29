@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using SprintBoard.Application.Interfaces;
+using SprintBoard.api.Security;
 
 namespace SprintBoard.api.Services;
 
@@ -46,21 +47,20 @@ public sealed class LocalFileStorageService
     }
 
     /// <summary>
-    /// Saves a user profile image to local storage.
+    /// Validates and saves a user profile image to local storage.
     /// </summary>
     /// <param name="fileStream">
-    /// Stream containing the image data.
+    /// Stream containing the uploaded image data.
     /// </param>
     /// <param name="fileName">
-    /// Original file name used to preserve the
-    /// uploaded file extension.
+    /// Original uploaded file name used only during
+    /// security validation.
     /// </param>
     /// <param name="contentType">
-    /// MIME type of the uploaded file.
+    /// MIME type declared for the uploaded image.
     /// </param>
     /// <returns>
-    /// Public URL that can be used to access the
-    /// stored profile image.
+    /// Public URL of the safely stored profile image.
     /// </returns>
     public async Task<string>
         SaveUserProfileImageAsync(
@@ -73,11 +73,18 @@ public sealed class LocalFileStorageService
                 .TrimEnd('/');
 
         if (string.IsNullOrWhiteSpace(
-            publicBaseUrl))
+                publicBaseUrl))
         {
             throw new InvalidOperationException(
                 "File storage public base URL is missing.");
         }
+
+        var validatedImage =
+            await ProfileImageContentValidator
+                .ValidateAsync(
+                    fileStream,
+                    fileName,
+                    contentType);
 
         var webRootPath =
             _webHostEnvironment.WebRootPath
@@ -92,26 +99,24 @@ public sealed class LocalFileStorageService
         Directory.CreateDirectory(
             profilesDirectoryPath);
 
-        var fileExtension =
-            Path.GetExtension(fileName);
-
+        /*
+         * Never persist the extension supplied directly
+         * by the client. The validator provides a trusted
+         * canonical extension derived from the validated
+         * image format.
+         */
         var storedFileName =
-            $"{Guid.NewGuid()}{fileExtension}";
+            $"{Guid.NewGuid():N}" +
+            validatedImage.FileExtension;
 
         var storedFilePath =
             Path.Combine(
                 profilesDirectoryPath,
                 storedFileName);
 
-        await using (
-            var outputStream =
-                new FileStream(
-                    storedFilePath,
-                    FileMode.Create))
-        {
-            await fileStream.CopyToAsync(
-                outputStream);
-        }
+        await File.WriteAllBytesAsync(
+            storedFilePath,
+            validatedImage.Content);
 
         return
             $"{publicBaseUrl}/" +

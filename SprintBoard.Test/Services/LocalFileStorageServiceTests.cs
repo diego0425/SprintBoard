@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
+using SprintBoard.api.Security;
 using SprintBoard.api.Services;
 using Xunit;
 
@@ -45,14 +46,7 @@ namespace SprintBoard.Test.Services
             var service =
                 CreateService(PublicBaseUrl);
 
-            byte[] fileContent =
-            [
-                10,
-                20,
-                30,
-                40,
-                50
-            ];
+            byte[] fileContent = CreateJpegContent();
 
             using var fileStream =
                 new MemoryStream(fileContent);
@@ -101,8 +95,7 @@ namespace SprintBoard.Test.Services
                     $"{PublicBaseUrl}/");
 
             using var fileStream =
-                new MemoryStream(
-                    [1, 2, 3]);
+                new MemoryStream(CreatePngContent());
 
             // Act
             var result =
@@ -122,33 +115,39 @@ namespace SprintBoard.Test.Services
         }
 
         /// <summary>
-        /// Verifies that the extension from the original uploaded
-        /// file is preserved in the generated stored file name.
+        /// Verifies that the storage service uses the trusted
+        /// canonical extension instead of blindly preserving
+        /// the uploaded file extension.
         /// </summary>
         [Fact]
-        public async Task SaveUserProfileImageAsync_ShouldPreserveFileExtension()
+        public async Task SaveUserProfileImageAsync_ShouldUseCanonicalFileExtension()
         {
             // Arrange
             var service =
-                CreateService(PublicBaseUrl);
+                CreateService(
+                    PublicBaseUrl);
 
             using var fileStream =
                 new MemoryStream(
-                    [1, 2, 3]);
+                    CreateJpegContent());
 
             // Act
             var result =
                 await service.SaveUserProfileImageAsync(
                     fileStream,
-                    "avatar.profile.webp",
-                    "image/webp");
+                    "avatar.profile.jpeg",
+                    "image/jpeg");
 
             // Assert
-            Assert.EndsWith(".webp", result, StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith(
+                ".jpg",
+                result,
+                StringComparison.OrdinalIgnoreCase);
 
             Assert.True(
                 File.Exists(
-                    GetStoredFilePath(result)));
+                    GetStoredFilePath(
+                        result)));
         }
 
         /// <summary>
@@ -163,12 +162,10 @@ namespace SprintBoard.Test.Services
                 CreateService(PublicBaseUrl);
 
             using var firstStream =
-                new MemoryStream(
-                    [1, 2, 3]);
+                new MemoryStream(CreatePngContent());
 
             using var secondStream =
-                new MemoryStream(
-                    [4, 5, 6]);
+                new MemoryStream(CreatePngContent());
 
             // Act
             var firstResult =
@@ -266,6 +263,226 @@ namespace SprintBoard.Test.Services
         }
 
         /// <summary>
+        /// Verifies that a file claiming to be JPEG is rejected
+        /// when its binary content is not a JPEG image.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldRejectSpoofedJpegContent()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            using var fileStream =
+                new MemoryStream(
+                    [1, 2, 3, 4, 5]);
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            service
+                                .SaveUserProfileImageAsync(
+                                    fileStream,
+                                    "profile.jpg",
+                                    "image/jpeg"));
+
+            // Assert
+            Assert.Equal(
+                "File content does not match " +
+                "the declared image type.",
+                exception.Message);
+        }
+
+        /// <summary>
+        /// Verifies that image content is rejected when
+        /// its actual signature differs from its MIME type.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldRejectContentTypeMismatch()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            using var fileStream =
+                new MemoryStream(
+                    CreatePngContent());
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            service
+                                .SaveUserProfileImageAsync(
+                                    fileStream,
+                                    "profile.jpg",
+                                    "image/jpeg"));
+
+            // Assert
+            Assert.Equal(
+                "File content does not match " +
+                "the declared image type.",
+                exception.Message);
+        }
+
+        /// <summary>
+        /// Verifies that an image is rejected when its
+        /// file extension conflicts with its declared type.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldRejectExtensionMismatch()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            using var fileStream =
+                new MemoryStream(
+                    CreatePngContent());
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            service
+                                .SaveUserProfileImageAsync(
+                                    fileStream,
+                                    "profile.jpg",
+                                    "image/png"));
+
+            // Assert
+            Assert.Equal(
+                "File extension does not match " +
+                "the declared image type.",
+                exception.Message);
+        }
+
+        /// <summary>
+        /// Verifies that unsupported image formats cannot
+        /// be persisted as profile images.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldRejectUnsupportedImageType()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            using var fileStream =
+                new MemoryStream(
+                    [1, 2, 3]);
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            service
+                                .SaveUserProfileImageAsync(
+                                    fileStream,
+                                    "profile.svg",
+                                    "image/svg+xml"));
+
+            // Assert
+            Assert.Equal(
+                "Only JPG, PNG and WEBP images are allowed.",
+                exception.Message);
+        }
+
+        /// <summary>
+        /// Verifies that profile images larger than the
+        /// configured security limit are rejected.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldRejectFile_WhenSizeLimitIsExceeded()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            var oversizedContent =
+                new byte[
+                    ProfileImageContentValidator
+                        .MaxFileSizeBytes + 1];
+
+            oversizedContent[0] =
+                0xFF;
+
+            oversizedContent[1] =
+                0xD8;
+
+            oversizedContent[2] =
+                0xFF;
+
+            using var fileStream =
+                new MemoryStream(
+                    oversizedContent);
+
+            // Act
+            var exception =
+                await Assert.ThrowsAsync<
+                    ArgumentException>(
+                        () =>
+                            service
+                                .SaveUserProfileImageAsync(
+                                    fileStream,
+                                    "profile.jpg",
+                                    "image/jpeg"));
+
+            // Assert
+            Assert.Equal(
+                "Profile image cannot exceed 5 MB.",
+                exception.Message);
+        }
+
+        /// <summary>
+        /// Verifies that rejected uploads do not leave files
+        /// behind in the profile image storage directory.
+        /// </summary>
+        [Fact]
+        public async Task SaveUserProfileImageAsync_ShouldNotPersistFile_WhenValidationFails()
+        {
+            // Arrange
+            var service =
+                CreateService(
+                    PublicBaseUrl);
+
+            using var fileStream =
+                new MemoryStream(
+                    [1, 2, 3, 4]);
+
+            var profilesDirectoryPath =
+                Path.Combine(
+                    _webRootPath,
+                    "uploads",
+                    "profiles");
+
+            // Act
+            await Assert.ThrowsAsync<
+                ArgumentException>(
+                    () =>
+                        service
+                            .SaveUserProfileImageAsync(
+                                fileStream,
+                                "profile.jpg",
+                                "image/jpeg"));
+
+            // Assert
+            Assert.False(
+                Directory.Exists(
+                    profilesDirectoryPath));
+        }
+
+        /// <summary>
         /// Creates the system under test using an isolated temporary
         /// web root and the supplied public storage URL.
         /// </summary>
@@ -340,6 +557,67 @@ namespace SprintBoard.Test.Services
                     _webRootPath,
                     recursive: true);
             }
+        }
+
+        /// <summary>
+        /// Creates binary content containing a valid
+        /// JPEG file signature.
+        /// </summary>
+        private static byte[] CreateJpegContent()
+        {
+            return
+            [
+                0xFF,
+        0xD8,
+        0xFF,
+        0xE0,
+        0x00,
+        0x10
+            ];
+        }
+
+        /// <summary>
+        /// Creates binary content containing a valid
+        /// PNG file signature.
+        /// </summary>
+        private static byte[] CreatePngContent()
+        {
+            return
+            [
+                0x89,
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
+        0x00
+            ];
+        }
+
+        /// <summary>
+        /// Creates binary content containing valid
+        /// RIFF and WEBP signatures.
+        /// </summary>
+        private static byte[] CreateWebpContent()
+        {
+            return
+            [
+                0x52,
+        0x49,
+        0x46,
+        0x46,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x57,
+        0x45,
+        0x42,
+        0x50,
+        0x00
+            ];
         }
     }
 }
