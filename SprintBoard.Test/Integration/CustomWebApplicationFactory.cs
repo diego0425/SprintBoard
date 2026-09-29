@@ -30,6 +30,36 @@ namespace SprintBoard.Test.Integration
 
         private SqliteConnection? _connection;
 
+        private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
+
+        /// <summary>
+        /// Initializes the integration test factory using the
+        /// default SprintBoard test configuration.
+        /// </summary>
+        internal CustomWebApplicationFactory()
+            : this(
+                new Dictionary<string, string?>())
+        {
+        }
+
+        /// <summary>
+        /// Initializes the integration test factory with
+        /// additional configuration overrides.
+        /// </summary>
+        /// <param name="configurationOverrides">
+        /// Configuration values that should replace the
+        /// default integration test settings.
+        /// </param>
+        public CustomWebApplicationFactory(
+            IReadOnlyDictionary<string, string?>
+                configurationOverrides)
+        {
+            _configurationOverrides =
+                configurationOverrides
+                ?? throw new ArgumentNullException(
+                    nameof(configurationOverrides));
+        }
+
         /// <summary>
         /// Supplies configuration values before the SprintBoard
         /// application entry point is executed.
@@ -53,8 +83,28 @@ namespace SprintBoard.Test.Integration
                                 TestJwtAudience,
 
                             ["Jwt:ExpiresMinutes"] =
-                                "60"
+                                "60",
+
+                            ["RateLimiting:Auth:LoginPermitLimit"] =
+                                "10000",
+
+                            ["RateLimiting:Auth:LoginWindowSeconds"] =
+                                "60",
+
+                            ["RateLimiting:Auth:RegisterPermitLimit"] =
+                                "10000",
+
+                            ["RateLimiting:Auth:RegisterWindowSeconds"] =
+                                "60",
+
+                            ["FileStorage:PublicBaseUrl"] =
+                                "http://localhost",
                         };
+
+                    foreach (var configurationOverride in _configurationOverrides)
+                    {
+                        settings[configurationOverride.Key] = configurationOverride.Value;
+                    }
 
                     configuration.AddInMemoryCollection(
                         settings);

@@ -24,6 +24,9 @@ services:
       retries: 10
       start_period: 20s
 
+    networks: 
+      - sprintboard-network
+
   api:
     build:
       context: .
@@ -59,11 +62,16 @@ services:
 
       FileStorage__PublicBaseUrl: "http://localhost:3000"
 
-    ports:
+      ReverseProxy__KnownProxyIp: "172.30.0.10"
+
+    ports: 
       - "8080:8080"
 
-    volumes:
+    volumes: 
       - sprintboard-upload-data:/app/wwwroot/uploads
+
+    networks: 
+      - sprintboard-network
 
   frontend:
     build:
@@ -75,12 +83,24 @@ services:
     image: sprintboard-web
     container_name: sprintboard-web
 
-    depends_on:
+    depends_on: 
       - api
 
-    ports:
+    ports: 
       - "3000:80"
+
+    networks:
+      sprintboard-network:
+        ipv4_address: 172.30.0.10
 
 volumes:
   sprintboard-sql-data:
   sprintboard-upload-data:
+
+networks:
+  sprintboard-network:
+    driver: bridge
+
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
