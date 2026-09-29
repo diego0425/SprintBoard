@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using SprintBoard.api.Auth;
 using SprintBoard.Application.DTOs.Auth;
 using SprintBoard.Application.Services;
+using Microsoft.AspNetCore.RateLimiting;
+using SprintBoard.api.RateLimiting;
 
 namespace SprintBoard.api.Controllers;
 
@@ -51,6 +53,7 @@ public sealed class AuthController : ControllerBase
     /// An <see cref="AuthResponse"/> containing the generated JWT access token and its expiration date.
     /// </returns>
     [HttpPost("register")]
+    [EnableRateLimiting(AuthRateLimitPolicies.Register)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         var user = await _authService.RegisterAsync(request);
@@ -75,6 +78,7 @@ public sealed class AuthController : ControllerBase
     /// An <see cref="AuthResponse"/> containing the generated JWT access token and its expiration date.
     /// </returns>
     [HttpPost("login")]
+    [EnableRateLimiting(AuthRateLimitPolicies.Login)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {
         var user = await _authService.LoginAsync(request);

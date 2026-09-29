@@ -1,4 +1,9 @@
 using System.Text;
+using System.Globalization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using SprintBoard.api.Errors;
+using SprintBoard.api.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -15,6 +20,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using Serilog.Events;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -174,6 +181,173 @@ builder.Services.AddCors(options =>
         });
 });
 
+var authRateLimitOptions =
+    builder.Configuration
+        .GetSection(
+            AuthRateLimitOptions.SectionName)
+        .Get<AuthRateLimitOptions>()
+    ?? new AuthRateLimitOptions();
+
+if (authRateLimitOptions.LoginPermitLimit <= 0 ||
+    authRateLimitOptions.LoginWindowSeconds <= 0 ||
+    authRateLimitOptions.RegisterPermitLimit <= 0 ||
+    authRateLimitOptions.RegisterWindowSeconds <= 0)
+{
+    throw new InvalidOperationException(
+        "Authentication rate-limit configuration " +
+        "must contain positive values.");
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected =
+        async (
+            context,
+            cancellationToken) =>
+        {
+            var httpContext =
+                context.HttpContext;
+
+            if (context.Lease.TryGetMetadata(
+                    MetadataName.RetryAfter,
+                    out TimeSpan retryAfter))
+            {
+                httpContext.Response.Headers
+                    .RetryAfter =
+                    Math.Ceiling(
+                            retryAfter.TotalSeconds)
+                        .ToString(
+                            CultureInfo.InvariantCulture);
+            }
+
+            var response =
+                new ApiErrorResponse
+                {
+                    StatusCode =
+                        StatusCodes
+                            .Status429TooManyRequests,
+
+                    Message =
+                        "Too many requests. " +
+                        "Please try again later.",
+
+                    TraceId =
+                        httpContext.TraceIdentifier
+                };
+
+            await httpContext.Response
+                .WriteAsJsonAsync(
+                    response,
+                    cancellationToken);
+        };
+
+    options.AddPolicy(
+        AuthRateLimitPolicies.Login,
+        httpContext =>
+            RateLimitPartition
+                .GetFixedWindowLimiter(
+                    partitionKey:
+                        httpContext.Connection
+                            .RemoteIpAddress?
+                            .ToString()
+                        ?? "unknown",
+
+                    factory:
+                        _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit =
+                                    authRateLimitOptions
+                                        .LoginPermitLimit,
+
+                                Window =
+                                    TimeSpan.FromSeconds(
+                                        authRateLimitOptions
+                                            .LoginWindowSeconds),
+
+                                QueueLimit =
+                                    0,
+
+                                AutoReplenishment =
+                                    true
+                            }));
+
+    options.AddPolicy(
+        AuthRateLimitPolicies.Register,
+        httpContext =>
+            RateLimitPartition
+                .GetFixedWindowLimiter(
+                    partitionKey:
+                        httpContext.Connection
+                            .RemoteIpAddress?
+                            .ToString()
+                        ?? "unknown",
+
+                    factory:
+                        _ =>
+                            new FixedWindowRateLimiterOptions
+                            {
+                                PermitLimit =
+                                    authRateLimitOptions
+                                        .RegisterPermitLimit,
+
+                                Window =
+                                    TimeSpan.FromSeconds(
+                                        authRateLimitOptions
+                                            .RegisterWindowSeconds),
+
+                                QueueLimit =
+                                    0,
+
+                                AutoReplenishment =
+                                    true
+                            }));
+});
+
+var knownProxyIp =
+    builder.Configuration[
+        "ReverseProxy:KnownProxyIp"];
+
+IPAddress? knownProxyAddress =
+    null;
+
+if (!string.IsNullOrWhiteSpace(
+        knownProxyIp))
+{
+    if (!IPAddress.TryParse(
+            knownProxyIp,
+            out knownProxyAddress))
+    {
+        throw new InvalidOperationException(
+            "Reverse proxy IP address is invalid.");
+    }
+}
+
+builder.Services.Configure<
+    ForwardedHeadersOptions>(
+    options =>
+    {
+        options.ForwardedHeaders =
+            ForwardedHeaders.XForwardedFor |
+            ForwardedHeaders.XForwardedProto;
+
+        /*
+         * SprintBoard currently has a single trusted
+         * reverse proxy in front of the API.
+         */
+        options.ForwardLimit =
+            1;
+
+        if (knownProxyAddress is not null)
+        {
+            options.KnownProxies.Add(
+                knownProxyAddress);
+        }
+    });
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -188,6 +362,8 @@ if (app.Environment.IsDevelopment())
 
     dbContext.Database.Migrate();
 }
+
+app.UseForwardedHeaders();
 
 app.UseStaticFiles();
 
@@ -228,7 +404,11 @@ app.UseSerilogRequestLogging(options =>
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+app.UseRouting();
+
 app.UseCors("AllowFrontend");
+
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
