@@ -36,7 +36,7 @@ namespace SprintBoard.Test.Integration
         /// Initializes the integration test factory using the
         /// default SprintBoard test configuration.
         /// </summary>
-        internal CustomWebApplicationFactory()
+        public CustomWebApplicationFactory()
             : this(
                 new Dictionary<string, string?>())
         {
@@ -50,7 +50,7 @@ namespace SprintBoard.Test.Integration
         /// Configuration values that should replace the
         /// default integration test settings.
         /// </param>
-        public CustomWebApplicationFactory(
+        internal CustomWebApplicationFactory(
             IReadOnlyDictionary<string, string?>
                 configurationOverrides)
         {
