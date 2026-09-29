@@ -24,6 +24,9 @@ namespace SprintBoard.Test.Auth
         // CREATE TOKEN
         // ============================================================
 
+        /// <summary>
+        /// Verifies that token creation fails when the user is null.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldThrowArgumentNullException_WhenUserIsNull()
         {
@@ -40,6 +43,9 @@ namespace SprintBoard.Test.Auth
                 exception.ParamName);
         }
 
+        /// <summary>
+        /// Verifies that token creation returns a valid serialized JWT.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldReturnValidSerializedJwt()
         {
@@ -68,6 +74,9 @@ namespace SprintBoard.Test.Auth
             Assert.NotNull(jwt);
         }
 
+        /// <summary>
+        /// Verifies that the generated JWT contains the expected user claims.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldIncludeUserClaims()
         {
@@ -124,6 +133,9 @@ namespace SprintBoard.Test.Auth
                     claim.Value == "diego0425");
         }
 
+        /// <summary>
+        /// Verifies that the generated JWT uses the configured issuer and audience.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldUseConfiguredIssuerAndAudience()
         {
@@ -149,6 +161,9 @@ namespace SprintBoard.Test.Auth
                 jwt.Audiences);
         }
 
+        /// <summary>
+        /// Verifies that the generated JWT uses the configured expiration time.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldUseConfiguredExpirationTime()
         {
@@ -187,6 +202,9 @@ namespace SprintBoard.Test.Auth
                 expirationDifference < TimeSpan.FromSeconds(1));
         }
 
+        /// <summary>
+        /// Verifies that the generated JWT contains a valid cryptographic signature.
+        /// </summary>
         [Fact]
         public void CreateToken_ShouldGenerateTokenWithValidSignature()
         {

@@ -37,6 +37,9 @@ namespace SprintBoard.Test.Services
         // GET BY ID
         // ============================================================
 
+        /// <summary>
+        /// Verifies that retrieving a user fails when the user identifier is empty.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldThrowArgumentException_WhenUserIdIsEmpty()
         {
@@ -55,6 +58,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that retrieving a user fails when the user does not exist.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldThrowKeyNotFoundException_WhenUserDoesNotExist()
         {
@@ -75,6 +81,9 @@ namespace SprintBoard.Test.Services
                 exception.Message);
         }
 
+        /// <summary>
+        /// Verifies that retrieving an existing user returns the expected mapped profile data.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldReturnMappedUser_WhenUserExists()
         {
@@ -108,6 +117,9 @@ namespace SprintBoard.Test.Services
         // UPDATE PROFILE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that updating the current user fails when the user identifier is empty.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldThrowArgumentException_WhenUserIdIsEmpty()
         {
@@ -138,6 +150,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that updating the current user fails when the user does not exist.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldThrowKeyNotFoundException_WhenUserDoesNotExist()
         {
@@ -169,6 +184,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that updating the full name persists the modified user.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldUpdateFullNameAndSave()
         {
@@ -199,6 +217,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the username can be updated when the requested username is available.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldUpdateUsername_WhenUsernameIsAvailable()
         {
@@ -239,6 +260,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a user can keep their current username during a profile update.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldAllowCurrentUsername()
         {
@@ -275,6 +299,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that updating the username fails when it is already used by another user.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldThrowInvalidOperationException_WhenUsernameIsAlreadyInUse()
         {
@@ -481,6 +508,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the password is not changed when only a new password is provided.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldNotChangePassword_WhenOnlyNewPasswordIsProvided()
         {
@@ -514,6 +544,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the password is not changed when only the current password is provided.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldNotChangePassword_WhenOnlyOldPasswordIsProvided()
         {
@@ -547,6 +580,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that blank profile fields leave the current user values unchanged.
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ShouldKeepCurrentValues_WhenFieldsAreBlank()
         {
@@ -706,6 +742,9 @@ namespace SprintBoard.Test.Services
         // PROFILE IMAGE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that profile image updates fail when the user does not exist.
+        /// </summary>
         [Fact]
         public async Task UpdateProfileImageAsync_ShouldThrowKeyNotFoundException_WhenUserDoesNotExist()
         {
@@ -744,6 +783,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a profile image is stored, assigned to the user, and persisted.
+        /// </summary>
         [Fact]
         public async Task UpdateProfileImageAsync_ShouldStoreImageUpdateUserAndSave()
         {
@@ -795,6 +837,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the stored profile image URL is normalized before being assigned to the user.
+        /// </summary>
         [Fact]
         public async Task UpdateProfileImageAsync_ShouldTrimStoredImageUrlOnUser()
         {
@@ -839,6 +884,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that user changes are not persisted when profile image storage fails.
+        /// </summary>
         [Fact]
         public async Task UpdateProfileImageAsync_ShouldNotSaveUser_WhenFileStorageFails()
         {

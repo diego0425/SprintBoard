@@ -36,6 +36,9 @@ namespace SprintBoard.Test.Services
         // REGISTER
         // ============================================================
 
+        /// <summary>
+        /// Verifies that registration fails when the full name is empty.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenFullNameIsEmpty()
         {
@@ -63,6 +66,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the username is empty.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenUsernameIsEmpty()
         {
@@ -90,6 +96,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the email is empty.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenEmailIsEmpty()
         {
@@ -117,6 +126,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the password is empty.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenPasswordIsEmpty()
         {
@@ -145,6 +157,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the password is shorter than allowed.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenPasswordIsTooShort()
         {
@@ -173,6 +188,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the supplied passwords do not match.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowArgumentException_WhenPasswordsDoNotMatch()
         {
@@ -201,6 +219,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that registration fails when the email is already in use.
+        /// </summary>
         [Fact]
         public async Task RegisterAsync_ShouldThrowInvalidOperationException_WhenEmailIsAlreadyInUse()
         {
@@ -335,6 +356,9 @@ namespace SprintBoard.Test.Services
         // LOGIN
         // ============================================================
 
+        /// <summary>
+        /// Verifies that login fails when the email is empty.
+        /// </summary>
         [Fact]
         public async Task LoginAsync_ShouldThrowArgumentException_WhenEmailIsEmpty()
         {
@@ -360,6 +384,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that login fails when the password is empty.
+        /// </summary>
         [Fact]
         public async Task LoginAsync_ShouldThrowArgumentException_WhenPasswordIsEmpty()
         {
@@ -385,6 +412,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that login fails when the requested user does not exist.
+        /// </summary>
         [Fact]
         public async Task LoginAsync_ShouldThrowInvalidOperationException_WhenUserDoesNotExist()
         {

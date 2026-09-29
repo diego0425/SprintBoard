@@ -41,6 +41,9 @@ namespace SprintBoard.Test.Services
         // ACCEPT
         // ============================================================
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when the token is empty.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowArgumentException_WhenTokenIsEmpty()
         {
@@ -64,6 +67,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when the invitation does not exist.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowKeyNotFoundException_WhenInvitationDoesNotExist()
         {
@@ -99,6 +105,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when it is no longer pending.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowInvalidOperationException_WhenInvitationIsNotPending()
         {
@@ -138,6 +147,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an expired invitation is marked as expired
+        /// and cannot be accepted.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldExpireInvitationAndThrow_WhenInvitationHasExpired()
         {
@@ -183,6 +196,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when the user does not exist.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowKeyNotFoundException_WhenUserDoesNotExist()
         {
@@ -230,6 +246,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when the
+        /// authenticated user's email does not match the invitation.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowUnauthorizedAccessException_WhenEmailDoesNotMatch()
         {
@@ -278,6 +298,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting an invitation fails when
+        /// the user is already a board member.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldThrowInvalidOperationException_WhenUserIsAlreadyMember()
         {
@@ -330,6 +354,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that accepting a valid invitation adds the user
+        /// as a member and persists the changes.
+        /// </summary>
         [Fact]
         public async Task AcceptAsync_ShouldAddMemberAcceptInvitationAndSave()
         {
@@ -389,6 +417,9 @@ namespace SprintBoard.Test.Services
         // DECLINE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that declining an invitation fails when the token is empty.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldThrowArgumentException_WhenTokenIsEmpty()
         {
@@ -412,6 +443,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that declining an invitation fails when the invitation does not exist.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldThrowKeyNotFoundException_WhenInvitationDoesNotExist()
         {
@@ -446,6 +480,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that declining an invitation fails when it is no longer pending.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldThrowInvalidOperationException_WhenInvitationIsNotPending()
         {
@@ -484,6 +521,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an expired invitation is marked as expired
+        /// and cannot be declined.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldExpireInvitationAndThrow_WhenInvitationHasExpired()
         {
@@ -524,6 +565,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that declining an invitation fails when the user does not exist.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldThrowKeyNotFoundException_WhenUserDoesNotExist()
         {
@@ -564,6 +608,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that declining an invitation fails when the
+        /// authenticated user's email does not match the invitation.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldThrowUnauthorizedAccessException_WhenEmailDoesNotMatch()
         {
@@ -605,6 +653,10 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that declining a valid invitation updates its
+        /// status and persists the changes.
+        /// </summary>
         [Fact]
         public async Task DeclineAsync_ShouldDeclineInvitationAndSave()
         {

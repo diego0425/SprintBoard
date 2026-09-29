@@ -53,6 +53,9 @@ namespace SprintBoard.Test.Services
         // CREATE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that board creation fails when the board name is empty.
+        /// </summary>
         [Fact]
         public async Task CreateAsync_ShouldThrowArgumentException_WhenNameIsEmpty()
         {
@@ -79,6 +82,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that board creation fails when the owner identifier is empty.
+        /// </summary>
         [Fact]
         public async Task CreateAsync_ShouldThrowArgumentException_WhenOwnerIdIsEmpty()
         {
@@ -100,6 +106,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that creating a board also creates the owner's membership.
+        /// </summary>
         [Fact]
         public async Task CreateAsync_ShouldCreateBoardAndOwnerMembership()
         {
@@ -145,6 +154,9 @@ namespace SprintBoard.Test.Services
         // GET BY ID - WITHOUT MEMBERSHIP CHECK
         // ============================================================
 
+        /// <summary>
+        /// Verifies that retrieving a board fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -160,6 +172,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that retrieving a board fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -178,6 +193,9 @@ namespace SprintBoard.Test.Services
             Assert.Equal("Board not found.", exception.Message);
         }
 
+        /// <summary>
+        /// Verifies that an existing board is returned successfully.
+        /// </summary>
         [Fact]
         public async Task GetByIdAsync_ShouldReturnBoard_WhenBoardExists()
         {
@@ -211,6 +229,9 @@ namespace SprintBoard.Test.Services
         // EXISTS
         // ============================================================
 
+        /// <summary>
+        /// Verifies that membership existence checks fail when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task ExistsAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -231,6 +252,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that membership existence checks fail when the user identifier is empty.
+        /// </summary>
         [Fact]
         public async Task ExistsAsync_ShouldThrowArgumentException_WhenUserIdIsEmpty()
         {
@@ -251,6 +275,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that membership existence checks fail when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task ExistsAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -278,6 +305,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that membership existence checks return true when the user belongs to the board.
+        /// </summary>
         [Fact]
         public async Task ExistsAsync_ShouldReturnTrue_WhenUserIsMember()
         {
@@ -315,6 +345,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that membership existence checks return false when the user does not belong to the board.
+        /// </summary>
         [Fact]
         public async Task ExistsAsync_ShouldReturnFalse_WhenUserIsNotMember()
         {
@@ -356,6 +389,9 @@ namespace SprintBoard.Test.Services
         // GET BY USER
         // ============================================================
 
+        /// <summary>
+        /// Verifies that retrieving boards for a user fails when the user identifier is empty.
+        /// </summary>
         [Fact]
         public async Task GetByUserAsync_ShouldThrowArgumentException_WhenUserIdIsEmpty()
         {
@@ -372,6 +408,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that all boards associated with the user are returned.
+        /// </summary>
         [Fact]
         public async Task GetByUserAsync_ShouldReturnUserBoards()
         {
@@ -423,6 +462,9 @@ namespace SprintBoard.Test.Services
         // GET BY ID - WITH MEMBERSHIP CHECK
         // ============================================================
 
+        /// <summary>
+        /// Verifies that retrieving a board with user context fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task GetByIdWithUserAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -445,6 +487,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that retrieving a board with user context fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task GetByIdWithUserAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -472,6 +517,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that retrieving a board fails when the user is not authorized to access it.
+        /// </summary>
         [Fact]
         public async Task GetByIdWithUserAsync_ShouldThrowForbiddenAccessException_WhenAccessIsDenied()
         {
@@ -508,6 +556,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a board is returned when the requesting user is a member.
+        /// </summary>
         [Fact]
         public async Task GetByIdWithUserAsync_ShouldReturnBoard_WhenUserIsMember()
         {
@@ -551,6 +602,9 @@ namespace SprintBoard.Test.Services
         // REMOVE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that board removal fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task RemoveAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -572,6 +626,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that board removal fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task RemoveAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -603,7 +660,9 @@ namespace SprintBoard.Test.Services
                     It.IsAny<Board>()),
                 Times.Never);
         }
-
+        /// <summary>
+        /// Verifies that a board is not removed when the requesting user is not the owner.
+        /// </summary>
         [Fact]
         public async Task RemoveAsync_ShouldNotRemoveBoard_WhenUserIsNotOwner()
         {
@@ -643,6 +702,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the board owner can remove the board.
+        /// </summary>
         [Fact]
         public async Task RemoveAsync_ShouldRemoveBoard_WhenUserIsOwner()
         {
@@ -689,6 +751,9 @@ namespace SprintBoard.Test.Services
         // UPDATE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that board updates fail when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task UpdateAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -716,6 +781,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that board updates fail when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task UpdateAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -753,6 +821,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a board is not updated when the requesting user is not the owner.
+        /// </summary>
         [Fact]
         public async Task UpdateAsync_ShouldNotUpdateBoard_WhenUserIsNotOwner()
         {
@@ -795,6 +866,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that board updates persist a trimmed board name.
+        /// </summary>
         [Fact]
         public async Task UpdateAsync_ShouldUpdateAndTrimBoardName()
         {
@@ -841,6 +915,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a blank board name keeps the current name unchanged.
+        /// </summary>
         [Fact]
         public async Task UpdateAsync_ShouldKeepCurrentName_WhenNameIsBlank()
         {
@@ -891,6 +968,9 @@ namespace SprintBoard.Test.Services
         // CREATE INVITATION
         // ============================================================
 
+        /// <summary>
+        /// Verifies that invitation creation fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -909,6 +989,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that invitation creation fails when the requester identifier is empty.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowArgumentException_WhenRequesterIdIsEmpty()
         {
@@ -929,6 +1012,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that invitation creation fails when the email is empty.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowArgumentException_WhenEmailIsEmpty()
         {
@@ -948,6 +1034,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that invitation creation fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -978,6 +1067,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an invitation is not created when the requester lacks permission.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldNotCreateInvitation_WhenAccessIsForbidden()
         {
@@ -1024,6 +1116,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an invitation cannot be created for an existing board member.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowInvalidOperationException_WhenUserIsAlreadyMember()
         {
@@ -1084,6 +1179,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a duplicate pending invitation cannot be created for the same email.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldThrowInvalidOperationException_WhenPendingInvitationAlreadyExists()
         {
@@ -1140,6 +1238,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a valid invitation is created, persisted, and sent to the recipient.
+        /// </summary>
         [Fact]
         public async Task CreateInvitationAsync_ShouldCreateSaveAndSendInvitation()
         {
@@ -1238,11 +1339,13 @@ namespace SprintBoard.Test.Services
                     $"https://test/decline/{result.Token}"),
                 Times.Once);
         }
-
         // ============================================================
         // CHANGE MEMBER ROLE
         // ============================================================
 
+        /// <summary>
+        /// Verifies that member roles cannot be changed by a requester who is not the board owner.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldNotChangeRole_WhenRequesterIsNotOwner()
         {
@@ -1275,6 +1378,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that changing a member role fails when the target membership does not exist.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldThrowKeyNotFoundException_WhenMemberDoesNotExist()
         {
@@ -1308,6 +1414,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the board owner's membership role cannot be changed.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldThrowInvalidOperationException_WhenTargetIsOwner()
         {
@@ -1353,6 +1462,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the owner role cannot be assigned to another board member.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldThrowInvalidOperationException_WhenAssigningOwnerRole()
         {
@@ -1398,6 +1510,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that changing a member role fails when the requested role is invalid.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldThrowArgumentException_WhenRoleIsInvalid()
         {
@@ -1438,6 +1553,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an authorized role change updates the member and persists the changes.
+        /// </summary>
         [Fact]
         public async Task ChangeMemberRoleAsync_ShouldChangeMemberRoleAndSave()
         {
@@ -1487,6 +1605,9 @@ namespace SprintBoard.Test.Services
         // REMOVE MEMBER
         // ============================================================
 
+        /// <summary>
+        /// Verifies that removing a member fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -1506,6 +1627,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that removing a member fails when the requester identifier is empty.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowArgumentException_WhenRequesterIdIsEmpty()
         {
@@ -1525,6 +1649,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that removing a member fails when the target member identifier is empty.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowArgumentException_WhenMemberIdIsEmpty()
         {
@@ -1544,6 +1671,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that removing a member fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -1572,6 +1702,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a member is not removed when the requester lacks permission.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldNotRemoveMember_WhenAccessIsForbidden()
         {
@@ -1612,6 +1745,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that member removal fails when the requester's membership does not exist.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowKeyNotFoundException_WhenRequesterMembershipDoesNotExist()
         {
@@ -1661,6 +1797,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that member removal fails when the target membership does not exist.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowKeyNotFoundException_WhenTargetMemberDoesNotExist()
         {
@@ -1715,6 +1854,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the board owner cannot be removed from the board.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowInvalidOperationException_WhenTargetIsOwner()
         {
@@ -1775,6 +1917,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an administrator cannot remove another administrator.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldThrowForbiddenAccessException_WhenAdminTriesToRemoveAdmin()
         {
@@ -1834,7 +1979,9 @@ namespace SprintBoard.Test.Services
                     It.IsAny<BoardMember>()),
                 Times.Never);
         }
-
+        /// <summary>
+        /// Verifies that an administrator can remove a regular board member.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldAllowAdminToRemoveMember()
         {
@@ -1893,6 +2040,9 @@ namespace SprintBoard.Test.Services
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that the board owner can remove an administrator.
+        /// </summary>
         [Fact]
         public async Task RemoveMemberAsync_ShouldAllowOwnerToRemoveAdmin()
         {
@@ -1955,6 +2105,9 @@ namespace SprintBoard.Test.Services
         // LEAVE BOARD
         // ============================================================
 
+        /// <summary>
+        /// Verifies that leaving a board fails when the board identifier is empty.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldThrowArgumentException_WhenBoardIdIsEmpty()
         {
@@ -1973,6 +2126,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that leaving a board fails when the user identifier is empty.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldThrowArgumentException_WhenUserIdIsEmpty()
         {
@@ -1991,6 +2147,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that leaving a board fails when the board does not exist.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldThrowKeyNotFoundException_WhenBoardDoesNotExist()
         {
@@ -2017,6 +2176,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that leaving a board fails when the user's membership does not exist.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldThrowKeyNotFoundException_WhenMembershipDoesNotExist()
         {
@@ -2052,6 +2214,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that the board owner cannot leave their own board.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldThrowInvalidOperationException_WhenOwnerTriesToLeave()
         {
@@ -2097,6 +2262,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a regular member can leave the board and persist the membership removal.
+        /// </summary>
         [Fact]
         public async Task LeaveBoardAsync_ShouldRemoveMembershipAndSave_WhenMemberLeaves()
         {
@@ -2140,6 +2308,9 @@ namespace SprintBoard.Test.Services
         // GET BOARD MEMBERS
         // ============================================================
 
+        /// <summary>
+        /// Verifies that board members are not returned when the requesting user lacks access.
+        /// </summary>
         [Fact]
         public async Task GetBoardMembersAsync_ShouldNotReturnMembers_WhenAccessIsForbidden()
         {
@@ -2164,6 +2335,9 @@ namespace SprintBoard.Test.Services
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that authorized board member retrieval returns the expected mapped members.
+        /// </summary>
         [Fact]
         public async Task GetBoardMembersAsync_ShouldReturnMappedMembers()
         {
