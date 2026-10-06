@@ -2,7 +2,7 @@
 
 SprintBoard is a full-stack collaborative task management application inspired by Kanban-style workflows.
 
-The project was built to explore modern backend and full-stack engineering practices using **C#/.NET and React**, with a strong focus on **Clean Architecture, authentication, authorization, automated testing, Docker, production-oriented configuration, health monitoring, structured logging and collaborative workflows**.
+The project was built to explore modern backend and full-stack engineering practices using **C#/.NET and React**, with a strong focus on **Clean Architecture, authentication, authorization, automated testing, security hardening, Docker, CI/CD, production-oriented configuration, health monitoring, structured logging and collaborative workflows**.
 
 ----
 
@@ -52,6 +52,13 @@ The project was built to explore modern backend and full-stack engineering pract
 - SQL Server 2022 container
 - Persistent Docker volumes
 - Nginx reverse proxy
+- GitHub Actions
+- GitHub Container Registry (GHCR)
+- Protected `main` branch with required CI checks
+- Automated backend build and test validation
+- Automated frontend lint and production build validation
+- Automated Docker Compose and image build validation
+- Automatic container image publishing after successful merges to `main`
 - Environment-based configuration
 - Health checks
 - Structured logging
@@ -63,8 +70,13 @@ The project was built to explore modern backend and full-stack engineering pract
 
 - User registration and authentication
 - JWT-based authentication
+- PBKDF2 password hashing
+- Automatic migration of legacy SHA-256 password hashes after successful authentication
+- Authentication rate limiting
+- Trusted reverse-proxy forwarded-header handling
 - User profile management
 - Profile image upload
+- File signature, MIME type and extension validation for uploaded profile images
 - Persistent profile image storage
 - Board creation and management
 - Collaborative board members
@@ -636,6 +648,68 @@ docker compose down -v
 
 ---
 
+---
+
+# ⚙️ CI/CD
+
+SprintBoard uses **GitHub Actions** for continuous integration and container-image publishing.
+
+The workflow is located at:
+
+```text
+.github/workflows/ci.yml
+```
+
+The `main` branch is protected and changes are expected to arrive through pull requests.
+
+Each pull request targeting `main` must pass:
+
+```text
+Backend   → restore, Release build and automated tests
+Frontend  → npm ci, ESLint and production build
+Docker    → Docker Compose validation and API/frontend image builds
+```
+
+The Docker job only starts after both Backend and Frontend succeed.
+
+After a successful merge into `main`, the pipeline runs again and publishes immutable container images to **GitHub Container Registry (GHCR)**.
+
+Published images:
+
+```text
+ghcr.io/diego0425/sprintboard-api
+ghcr.io/diego0425/sprintboard-web
+```
+
+Each image is published with:
+
+```text
+latest
+<git-commit-sha>
+```
+
+Using the commit SHA as an image tag provides traceability and allows a deployed revision to be mapped back to the exact source commit.
+
+The current pipeline flow is:
+
+```text
+Feature Branch
+      ↓
+Pull Request
+      ↓
+Backend ─────┐
+             ├──→ Docker Validation
+Frontend ────┘
+      ↓
+Required checks pass
+      ↓
+Merge into main
+      ↓
+CI runs again
+      ↓
+Publish API + Web images to GHCR
+```
+
 # 🔐 Authentication
 
 SprintBoard uses JWT Bearer authentication.
@@ -665,6 +739,65 @@ The API validates:
 Missing or invalid critical JWT configuration prevents the API from starting with unsafe settings.
 
 ---
+
+---
+
+# 🔒 Security Hardening
+
+SprintBoard includes a dedicated security-hardening layer covering authentication, proxy handling and file uploads.
+
+## Password Hashing
+
+New and updated passwords are hashed using the ASP.NET Core Identity PBKDF2 password hasher through the application abstraction:
+
+```text
+IPasswordHasher
+```
+
+Legacy accounts using the previous SHA-256 format remain compatible.
+
+After a successful legacy login, SprintBoard automatically replaces the old SHA-256 hash with the current PBKDF2 format.
+
+The migration happens only after the supplied password has been verified successfully.
+
+## Authentication Rate Limiting
+
+Authentication endpoints use fixed-window rate limiting.
+
+Current policies include separate limits for:
+
+```text
+Login
+Registration
+```
+
+Rejected requests return:
+
+```text
+429 Too Many Requests
+```
+
+with retry metadata when available.
+
+## Forwarded Headers
+
+SprintBoard supports trusted reverse-proxy deployments through forwarded-header processing.
+
+Only explicitly configured proxy addresses are trusted, reducing the risk of accepting spoofed forwarding information from arbitrary clients.
+
+## Upload Validation
+
+Profile-image uploads are validated using actual file signatures in addition to the supplied MIME type and file extension.
+
+Supported formats are:
+
+```text
+JPEG
+PNG
+WEBP
+```
+
+The validated content type and extension must agree before the file is persisted.
 
 # 🛡️ Authorization
 
@@ -788,6 +921,89 @@ This prevents every production application instance from independently attemptin
 
 ---
 
+---
+
+# ☁️ Selected Production Deployment Architecture
+
+The production deployment target has been selected to match the existing .NET, SQL Server, Docker and GHCR architecture while minimizing unnecessary infrastructure management.
+
+## Selected Platforms
+
+| Responsibility | Platform |
+|---|---|
+| API container | Azure Container Apps |
+| Frontend container | Azure Container Apps |
+| Relational database | Azure SQL Database |
+| Profile-image object storage | Azure Blob Storage |
+| Container registry | GitHub Container Registry (GHCR) |
+| CI/CD orchestration | GitHub Actions |
+| Production secrets | Azure Key Vault |
+| Future centralized telemetry | Azure Monitor / Application Insights |
+
+### Why Azure Container Apps?
+
+Both the ASP.NET Core API and React/Nginx frontend are already distributed as Docker images through GHCR.
+
+Keeping both application components containerized allows production to reuse the same build artifacts validated by CI.
+
+The intended deployment flow is:
+
+```text
+GitHub Actions
+      ↓
+GHCR
+      ↓
+┌──────────────────────────┐
+│ Azure Container Apps     │
+├──────────────────────────┤
+│ sprintboard-web          │
+│ sprintboard-api          │
+└────────────┬─────────────┘
+             │
+      ┌──────┴───────────┐
+      ▼                  ▼
+Azure SQL Database   Azure Blob Storage
+```
+
+The frontend remains containerized with Nginx so the current production build and reverse-proxy behavior can be preserved instead of introducing a separate frontend hosting model.
+
+### Why Azure SQL Database?
+
+SprintBoard already uses SQL Server and Entity Framework Core.
+
+Azure SQL Database is the selected production database because it provides a managed SQL Server-compatible PaaS environment without requiring SprintBoard to operate its own SQL Server container, operating system, patching or database host.
+
+Production schema changes will continue to use reviewed idempotent EF Core migration scripts instead of automatic application-startup migrations.
+
+### Why Azure Blob Storage?
+
+Local Docker volumes are appropriate for development, but production profile images should not depend on the lifecycle of an application container.
+
+The existing:
+
+```text
+IFileStorageService
+```
+
+abstraction allows the local implementation to be replaced by an Azure Blob Storage implementation without moving storage concerns into controllers or application services.
+
+### Deployment Status
+
+The deployment architecture is selected, but production provisioning is still in progress.
+
+The next production phase includes:
+
+```text
+Azure resource provisioning
+Azure SQL configuration
+Azure Blob Storage implementation
+Azure Key Vault secrets
+Container Apps deployment
+Production migration execution
+Custom domain and HTTPS validation
+Automated deployment of GHCR SHA-tagged images
+```
+
 # 🧪 Automated Tests
 
 SprintBoard has an extensive automated test suite.
@@ -795,13 +1011,13 @@ SprintBoard has an extensive automated test suite.
 Current status:
 
 ```text
-Total:   361
-Passed:  361
+Total:   384
+Passed:  384
 Failed:  0
 Skipped: 0
 ```
 
-## ✅ 361 automated tests passing
+## ✅ 384 automated tests passing
 
 The test suite includes:
 
@@ -1013,7 +1229,9 @@ Code coverage is collected using:
 
 Generated Entity Framework migrations and third-party library code are excluded from the application coverage metrics shown below.
 
-## Current Coverage
+## Last Recorded Coverage Snapshot
+
+The values below are the latest coverage snapshot currently documented in the repository. They should be regenerated after major test or production-code changes before being treated as current release metrics.
 
 ```text
 Line Coverage:   88.57%
@@ -1083,8 +1301,8 @@ dotnet test
 Expected result:
 
 ```text
-Total:   361
-Passed:  361
+Total:   384
+Passed:  384
 Failed:  0
 Skipped: 0
 ```
@@ -1124,6 +1342,10 @@ SprintBoard/
 │   ├── src/
 │   ├── Dockerfile
 │   └── nginx.conf
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 │
 ├── docker-compose.yml
 ├── .dockerignore
@@ -1168,6 +1390,12 @@ SprintBoard is under active development.
 - Member role management
 - Global exception handling
 - Environment-specific configuration
+- PBKDF2 password hashing
+- Legacy SHA-256 password-hash migration
+- Authentication rate limiting
+- Trusted forwarded-header configuration
+- Profile-image content validation
+- Security regression tests
 - Development database migrations
 - Production database migration strategy
 - API health checks
@@ -1187,7 +1415,7 @@ SprintBoard is under active development.
 - Board integration tests
 - Multi-user collaboration tests
 - SQLite integration-test environment
-- 361 automated tests
+- 384 automated tests
 - 88.57% line coverage
 - 83.24% branch coverage
 - 100% Application line coverage
@@ -1204,6 +1432,13 @@ SprintBoard is under active development.
 - Persistent uploaded-file volume
 - Docker Compose orchestration
 - Full-stack Docker environment
+- GitHub Actions CI
+- Protected main branch with required status checks
+- Backend Release build and automated test validation
+- Frontend ESLint and production-build validation
+- Docker Compose and image-build validation
+- Automatic GHCR publication after successful merges
+- SHA-tagged API and frontend container images
 - SprintBoard favicon / browser branding
 
 ---
@@ -1212,16 +1447,14 @@ SprintBoard is under active development.
 
 Planned improvements include:
 
-- Production deployment
-- CI/CD pipeline
-- HTTPS and reverse-proxy hardening
-- Production secrets provider
+- Production deployment to Azure Container Apps
+- Azure SQL Database provisioning and production migration execution
+- Azure Blob Storage implementation for profile images
+- Azure Key Vault integration for production secrets
 - Production SMTP provider
-- Production-grade password hashing
-- Rate limiting
-- Forwarded-header configuration
-- External object storage
-- Centralized log collection
+- Custom domain and HTTPS validation
+- Automated deployment of SHA-tagged GHCR images
+- Centralized log collection with Azure Monitor / Application Insights
 - Metrics
 - Distributed tracing
 - Expanded API documentation
@@ -1231,13 +1464,13 @@ Planned improvements include:
 
 # 🎯 Current Development Stage
 
-The core application, automated testing, Docker containerization and initial production-observability phases are complete.
+The core application, automated testing, security hardening, Docker containerization, production-observability foundations and CI/CD pipeline are complete.
 
 Current quality metrics:
 
 ```text
-Automated Tests:  361
-Passing:          361
+Automated Tests:  384
+Passing:          384
 Failed:           0
 Skipped:          0
 
@@ -1259,16 +1492,23 @@ SprintBoard currently includes:
 
 ```text
 Containerized full-stack environment
-Persistent database storage
-Persistent uploaded-file storage
+Persistent development database storage
+Persistent development uploaded-file storage
 Environment-based configuration
+PBKDF2 password security and legacy-hash migration
+Authentication rate limiting
+Trusted proxy handling
+Validated image uploads
 Health monitoring
 Structured logging
 Request correlation
-Extensive automated testing
+384 automated tests
+Protected pull-request workflow
+Automated CI validation
+Automatic GHCR image publishing
 ```
 
-The next major focus is further **production hardening, deployment and CI/CD**.
+The next major focus is **production deployment on Azure**, using **Azure Container Apps, Azure SQL Database, Azure Blob Storage and Azure Key Vault**.
 
 ---
 
