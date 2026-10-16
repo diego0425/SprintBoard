@@ -1,4 +1,34 @@
-# SprintBoard
+# SprintBoard | .NET 10, React, SQL Server
+
+[🇧🇷 Resumo em português](README.pt-BR.md) · [Developer profile](https://github.com/diego0425)
+
+**Portfolio project:** collaborative Kanban application demonstrating backend development, authorization, testing and CI/CD. This is a personal project, not commercial employment.
+
+## Quick overview for recruiters
+
+| Area | Evidence |
+|---|---|
+| Backend | C#, .NET 10, ASP.NET Core Web API, EF Core, SQL Server, Clean Architecture |
+| Frontend | React 19, TypeScript |
+| Security | JWT, board-level roles, invitations, rate limiting |
+| Testing | **384 automated tests passing** (unit and integration; not a claim of 100% coverage) |
+| Delivery | Docker Compose, GitHub Actions CI, GHCR image publishing |
+| Operations | Health checks, Serilog structured logging, correlation IDs |
+| Deployment | Runs locally with Docker; **Azure production deployment is planned, not live** |
+
+**Run locally:**
+
+```bash
+cp .env.example .env
+# Configure the local credentials and secrets as described in .env.example
+docker compose up -d --build
+```
+
+Open http://localhost:3000 after the containers start. Docker and sufficient resources for SQL Server are required.
+
+**Screenshots and hosted demo:** not published yet; no public deployment is claimed.
+
+---
 
 SprintBoard is a full-stack collaborative task management application inspired by Kanban-style workflows.
 
